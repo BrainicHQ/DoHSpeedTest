@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description"
+          content="Discover the fastest DNS server for your specific location with our advanced DNS Speed Test tool. Enhance your browsing speed and internet reliability effortlessly.">
+    <meta name="keywords" content="DNS Speed Test, DNS Server, Fast DNS, Internet Speed, DNS Performance">
+    <meta name="author" content="@SilviuStroe">
+    <title>DNS Speed Test - Find the Fastest DNS Server</title>
+    <link rel="stylesheet" href="style.css" type="text/css">
+    <link rel="apple-touch-icon" sizes="180x180" href="favicon/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="favicon/favicon-16x16.png">
+    <link rel="manifest" href="favicon/site.webmanifest">
+    <script type="application/ld+json">
+        {
+            "@context": "http://schema.org",
+            "@type": "SoftwareApplication",
+            "name": "DNS Speed Test",
+            "description": "Discover the fastest DNS server for your specific location with our advanced DNS Speed Test tool. Enhance your browsing speed and internet reliability effortlessly.",
+            "url": "https://dnsspeedtest.online/",
+            "author": {
+                "@type": "Person",
+                "name": "@SilviuStroe"
+            },
+            "applicationCategory": "WebApplication",
+            "operatingSystem": "All",
+            "offers": {
+                "@type": "Offer",
+                "price": "0",
+                "priceCurrency": "USD"
+            }
+        }
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+<h1 id="cta">Find the Fastest DNS Server for You</h1>
+<p>Optimize your internet experience by finding the fastest DNS server for your location. Just click the button below to
+    start the test.</p>
+<button id="checkButton">Check DNS Speed</button>
+<button id="editButton" class="settings-button" aria-label="Edit Website List">
+    🛠️️
+    <span class="tooltip">Edit hosts list</span>
+</button>
+<div id="loadingMessage" class="loading">Analyzing DNS Servers... Please hold on.</div>
+
+<!-- Modal -->
+<div id="websiteModal" class="modal">
+    <!-- Modal content -->
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <h2>Edit DNS Test Sites</h2>
+        <p>Add or remove websites to customize how DNS servers are tested. This allows you to tailor the DNS speed test to sites you frequently visit.</p>
+        <ul id="websiteList">
+        </ul>
+        <input type="text" id="newWebsite" placeholder="Add new website...">
+        <button id="addWebsite">Add</button>
+    </div>
+</div>
+
+
+<div id="dnsResults" aria-live="polite">
+    <table id="resultsTable">
+        <thead>
+        <tr>
+            <th onclick="sortTable(0)">DNS Server &#x2195;</th>
+            <th onclick="sortTable(1)">Min (ms) &#x2195;</th>
+            <th onclick="sortTable(2)">Median (ms) &#x2195;</th>
+            <th onclick="sortTable(3)">Max (ms) &#x2195;</th>
+        </tr>
+        </thead>
+        <tbody>
+        </tbody>
+    </table>
+</div>
+<div id="chartContainer">
+    <canvas id="dnsChart"></canvas>
+</div>
+<div id="disclaimer">
+    <h2>Disclaimer</h2>
+    <p>This <strong>DNS Speed Test tool</strong> operates client-side, directly testing DNS servers from your local
+        environment to ensure <strong>accurate real-world results</strong>. It supports <strong>DNS over HTTPS
+            (DoH)</strong>, enhancing privacy and security by encrypting DNS requests and responses.</p>
+
+    <p>Local network conditions like latency and bandwidth can influence <strong>DNS speed test results</strong>. Our
+        tool measures DNS resolution speed from your <strong>current location and network environment</strong>, offering
+        a personalized performance assessment.</p>
+
+    <p><strong>Note on Result Accuracy:</strong> Factors such as browser processing and network variability can affect
+        test results, potentially causing discrepancies compared to other methods. For example, browser-based tests
+        might show different timings due to overheads like HTTP(S) request handling. We recommend conducting multiple
+        tests under various conditions for a more comprehensive evaluation.</p>
+
+    <p>Our tool's strength lies in its <strong>comprehensive range of DNS servers</strong> and <strong>user-friendly
+        interface</strong>, suitable for both technical and non-technical users. While we strive for accuracy, the
+        results are indicative and should be used as a guide to help users choose the best DNS server options based on
+        relative performance in their specific conditions.</p>
+</div>
+<footer>
+    <div class="footer-content">
+        <p>&copy; 2023 DNSSpeedTest.online. All Rights Reserved.</p>
+        <a href="https://github.com/BrainicHQ/DoHSpeedTest" class="report-issue" target="_blank">🐙 GitHub</a>
+        <div class="support-link">
+            <a href="https://www.buymeacoffee.com/silviu" target="_blank" aria-label="Support me on Buy Me a Coffee">
+              ☕️ Support this project
+            </a>
+        </div>
+    </div>
+</footer>
+<script src="script.js"></script>
+</body>
+</html>
