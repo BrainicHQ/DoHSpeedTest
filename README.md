@@ -53,7 +53,7 @@ our [issues page](https://github.com/BrainicHQ/DoHSpeedTest/issues).
 
 ## 👤 Author
 
-- [@SilviuStroe](https://github.com/SilviuStroe) - Creator and project maintainer.
+- [Silviu Stroe](https://github.com/s1lviu/) - Creator and project maintainer.
 
 ## ⭐ Support
 
