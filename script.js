@@ -60,66 +60,70 @@ function updateChartWithData(server) {
     const chartContainer = document.getElementById('chartContainer');
     const ctx = document.getElementById('dnsChart').getContext('2d');
 
-    // Check if there is valid data
-    if (!server || !server.speed || server.speed.min === 'Unavailable') {
-        chartContainer.style.display = 'none';
-    } else {
-        // Only display the chart container on non-mobile devices
-        if (window.innerWidth > 768) {
-            chartContainer.style.display = 'block';
-        }
+    // Display the chart container if it's hidden and there's valid data
+    if (server.speed.min !== 'Unavailable' && window.innerWidth > 768) {
+        chartContainer.style.display = 'block';
     }
 
-    // Initialize the chart if it doesn't exist
+    // Initialize the chart if it doesn't exist, with the new line chart structure
     if (!dnsChart) {
         dnsChart = new Chart(ctx, {
-            type: 'bar', data: {
-                labels: [], datasets: [{
-                    label: 'Min Speed (ms)',
-                    data: [],
-                    backgroundColor: 'rgba(255, 99, 132, 0.2)',
-                    borderColor: 'rgba(255, 99, 132, 1)',
-                    borderWidth: 1
-                }, {
-                    label: 'Median Speed (ms)',
-                    data: [],
-                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
-                    borderColor: 'rgba(54, 162, 235, 1)',
-                    borderWidth: 1
-                }, {
-                    label: 'Max Speed (ms)',
-                    data: [],
-                    backgroundColor: 'rgba(255, 206, 86, 0.2)',
-                    borderColor: 'rgba(255, 206, 86, 1)',
-                    borderWidth: 1
-                }]
+            type: 'line', // Changed to 'line'
+            data: {
+                labels: topWebsites, // Assuming topWebsites is the array of websites
+                datasets: [] // Start with an empty array of datasets
             }, options: {
                 responsive: true, scales: {
                     y: {
                         beginAtZero: true
+                    }
+                }, plugins: {
+                    zoom: {
+                        zoom: {
+                            wheel: {
+                                enabled: true, // Enable zooming with mouse wheel
+                            }, pinch: {
+                                enabled: true // Enable zooming with pinch gestures
+                            }, mode: 'xy', // Zoom both x and y axes
+                        }, pan: {
+                            enabled: true, mode: 'xy' // Pan both x and y axes
+                        }
                     }
                 }
             }
         });
     }
 
-    // Check if the server data already exists in the chart
-    const serverIndex = dnsChart.data.labels.indexOf(server.name);
+    // Find the dataset for the current server
+    const serverIndex = dnsChart.data.datasets.findIndex(dataset => dataset.label === server.name);
+
+    // Prepare the server data for the chart (speed results for each website)
+    const serverData = server.individualResults.map(result => result.speed === 'Unavailable' ? null : result.speed);
+
     if (serverIndex === -1) {
-        // Server not in chart, add new data
-        dnsChart.data.labels.push(server.name);
-        dnsChart.data.datasets[0].data.push(server.speed.min);
-        dnsChart.data.datasets[1].data.push(server.speed.median);
-        dnsChart.data.datasets[2].data.push(server.speed.max);
+        // If the server is not in the chart, add it as a new dataset
+        const newDataset = {
+            label: server.name, data: serverData, fill: false, borderColor: getRandomColor(), // A function to generate a random color
+            borderWidth: 2, lineTension: 0.1 // Adjust for line smoothness
+        };
+        dnsChart.data.datasets.push(newDataset);
     } else {
-        // Server already in chart, update existing data
-        dnsChart.data.datasets[0].data[serverIndex] = server.speed.min;
-        dnsChart.data.datasets[1].data[serverIndex] = server.speed.median;
-        dnsChart.data.datasets[2].data[serverIndex] = server.speed.max;
+        // If the server is already in the chart, update its data
+        dnsChart.data.datasets[serverIndex].data = serverData;
     }
 
-    // Update the chart
+    // Update the chart to reflect the new or updated data
     dnsChart.update();
+}
+
+// Helper function to generate a random color for the chart lines
+function getRandomColor() {
+    const letters = '0123456789ABCDEF';
+    let color = '#';
+    for (let i = 0; i < 6; i++) {
+        color += letters[Math.floor(Math.random() * 16)];
+    }
+    return color;
 }
 
 async function warmUpDNSServers() {
@@ -152,8 +156,11 @@ async function performDNSTests() {
     for (const server of dnsServers) {
         const speedResults = await Promise.all(topWebsites.map(website => measureDNSSpeed(server.url, website, server.type, server.allowCors)));
 
-        // Store individual results for detailed view
-        server.individualResults = speedResults.map((speed, index) => ({website: topWebsites[index], speed}));
+        // Map each website to its speed result for the current server
+        server.individualResults = topWebsites.map((website, index) => {
+            const speed = speedResults[index];
+            return {website, speed: speed !== null ? speed : 'Unavailable'};
+        });
 
         const validResults = speedResults.filter(speed => speed !== null && typeof speed === 'number');
         validResults.sort((a, b) => a - b);
@@ -283,13 +290,19 @@ function updateResult(server) {
 
     // Populate the detailed view with timings for each hostname
     detailsRow.innerHTML = `
-        <td colspan="4">
-            <div>Timings for each hostname:</div>
-            <ul>
-                ${server.individualResults.map(result => `<li>${result.website}: ${result.speed !== null ? result.speed.toFixed(2) + ' ms' : 'Unavailable'}</li>`).join('')}
-            </ul>
-        </td>
-    `;
+    <td colspan="4">
+        <div>Timings for each hostname:</div>
+        <ul>
+            ${server.individualResults.map(result => {
+        if (typeof result.speed === 'number') {
+            return `<li>${result.website}: ${result.speed.toFixed(2)} ms</li>`;
+        } else {
+            return `<li>${result.website}: Unavailable</li>`;
+        }
+    }).join('')}
+        </ul>
+    </td>
+`;
 
     // Add click event listener to toggle detailed view
     // row.addEventListener('click', function() {
@@ -487,4 +500,8 @@ document.addEventListener('DOMContentLoaded', function () {
             modal.style.display = "none";
         }
     }
+
+    document.getElementById('resetZoom').addEventListener('click', function() {
+        dnsChart.resetZoom();
+    });
 });
