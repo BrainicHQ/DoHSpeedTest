@@ -275,7 +275,7 @@ function updateResult(server) {
 
     // Update row with basic information
     row.innerHTML = `
-        <td>${server.name} <span class="copy-icon" onclick="copyToClipboard('${server.url}')">📋</span></td>
+        <td>${server.name} <span class="copy-icon" onclick="copyToClipboard('${server.url}', this)">📋</span></td>
         <td>${server.speed.min !== 'Unavailable' ? server.speed.min.toFixed(2) : 'Unavailable'}</td>
         <td>${server.speed.median !== 'Unavailable' ? server.speed.median.toFixed(2) : 'Unavailable'}</td>
         <td>${server.speed.max !== 'Unavailable' ? server.speed.max.toFixed(2) : 'Unavailable'}</td>
@@ -342,11 +342,22 @@ function sortTable(columnIndex) {
     }
 }
 
-function copyToClipboard(text) {
+function copyToClipboard(text, buttonElement) {
+    event.stopPropagation();
     navigator.clipboard.writeText(text).then(() => {
-        //copied to clipboard
+        // Change button state to indicate success
+        buttonElement.classList.add('copied');
+        buttonElement.textContent = '✓ Copied';
+
+        // Revert button state after 2 seconds
+        setTimeout(() => {
+            buttonElement.classList.remove('copied');
+            buttonElement.textContent = '📋';
+        }, 2000);
     }).catch(err => {
         console.error('Error in copying text: ', err);
+        // Optionally, handle error state
+        buttonElement.textContent = '❌ Error';
     });
 }
 

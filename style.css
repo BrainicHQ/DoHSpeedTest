@@ -311,6 +311,11 @@ footer {
     height: 400px; /* or any other height */
 }
 
+.copy-icon.copied {
+    color: green;
+    /* other styling for the copied state */
+}
+
 
 @media (max-width: 768px) {
     body {
