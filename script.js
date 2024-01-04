@@ -62,7 +62,7 @@ function updateChartWithData(server) {
 
     // Display the chart container if it's hidden and there's valid data
     if (server.speed.min !== 'Unavailable' && window.innerWidth > 768) {
-        chartContainer.style.display = 'block';
+        chartContainer.classList.remove('hidden');
     }
 
     // Initialize the chart if it doesn't exist, with the new line chart structure
@@ -139,14 +139,14 @@ async function warmUpDNSServers() {
 checkButton.addEventListener('click', async function () {
     this.disabled = true;
     editButton.disabled = true; // Disable the Edit button
-    document.getElementById('loadingMessage').style.display = 'block';
+    document.getElementById('loadingMessage').classList.remove('hidden');
 
     document.getElementById('loadingMessage').innerHTML = 'Warming up DNS servers <img height="70" width="70" src="loading.gif"  alt="Loading" style="display: inline; vertical-align: middle;" />';
     await warmUpDNSServers();
     document.getElementById('loadingMessage').innerHTML = 'Analyzing DNS servers <img height="70" width="70" src="loading.gif" alt="Loading" style="display: inline; vertical-align: middle;" />';
     await performDNSTests();
 
-    document.getElementById('loadingMessage').style.display = 'none';
+    document.getElementById('loadingMessage').classList.add('hidden');
     this.disabled = false;
     editButton.disabled = false; // Re-enable the Edit button
 });
@@ -268,12 +268,13 @@ function updateResult(server) {
     if (!row) {
         row = document.createElement('tr');
         row.setAttribute('data-server-name', server.name);
+        row.classList.add('border-b', 'border-gray-300', 'hover:bg-gray-200');
         table.appendChild(row);
 
         // Create a new row for detailed information
         detailsRow = document.createElement('tr');
-        detailsRow.classList.add('details-row');
-        detailsRow.style.display = 'none'; // Hide by default
+        detailsRow.classList.add('details-row', 'hidden'); // Hide by default
+        detailsRow.classList.add('border-b', 'border-gray-300', 'hover:bg-gray-200');
         table.appendChild(detailsRow);
     } else {
         // If the row already exists, get the next row as the details row
@@ -282,15 +283,15 @@ function updateResult(server) {
 
     // Update row with basic information
     row.innerHTML = `
-        <td>${server.name} <span class="copy-icon" onclick="copyToClipboard('${server.url}', this)">📋</span></td>
-        <td>${server.speed.min !== 'Unavailable' ? server.speed.min.toFixed(2) : 'Unavailable'}</td>
-        <td>${server.speed.median !== 'Unavailable' ? server.speed.median.toFixed(2) : 'Unavailable'}</td>
-        <td>${server.speed.max !== 'Unavailable' ? server.speed.max.toFixed(2) : 'Unavailable'}</td>
+        <td class="text-left py-2 px-4">${server.name} <span class="copy-icon" onclick="copyToClipboard('${server.url}', this)">📋</span></td>
+        <td class="text-center py-2 px-4">${server.speed.min !== 'Unavailable' ? server.speed.min.toFixed(2) : 'Unavailable'}</td>
+        <td class="text-center py-2 px-4">${server.speed.median !== 'Unavailable' ? server.speed.median.toFixed(2) : 'Unavailable'}</td>
+        <td class="text-center py-2 px-4">${server.speed.max !== 'Unavailable' ? server.speed.max.toFixed(2) : 'Unavailable'}</td>
     `;
 
     // Populate the detailed view with timings for each hostname
     detailsRow.innerHTML = `
-    <td colspan="4">
+    <td colspan="4" class="py-2 px-4">
         <div>Timings for each hostname:</div>
         <ul>
             ${server.individualResults.map(result => {
@@ -306,7 +307,7 @@ function updateResult(server) {
 
     // Add click event listener to toggle detailed view
     // row.addEventListener('click', function() {
-    //     detailsRow.style.display = detailsRow.style.display === 'none' ? 'table-row' : 'none';
+    //     detailsRow.classList.toggle('hidden');
     // });
 
     updateChartWithData(server);
@@ -396,16 +397,8 @@ window.addEventListener('resize', function () {
 
 function updateChartVisibility() {
     const chartContainer = document.getElementById('chartContainer');
-    if (window.innerWidth <= 768) {
-        chartContainer.style.display = 'none';
-    } else {
-        // Additional logic to determine if chartContainer should be displayed
-        // For example, you might want to check if there's valid data
-        // if (/* condition to show chart */) {
-        //     chartContainer.style.display = 'block';
-        // } else {
-        //     chartContainer.style.display = 'none';
-        // }
+    if (window.innerWidth < 768) {
+        chartContainer.classList.add('hidden');
     }
 }
 
@@ -417,7 +410,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (row && !row.classList.contains('details-row')) {
             let detailsRow = row.nextElementSibling;
             if (detailsRow && detailsRow.classList.contains('details-row')) {
-                detailsRow.style.display = detailsRow.style.display === 'none' ? 'table-row' : 'none';
+                detailsRow.classList.toggle('hidden');
             }
         }
     });
@@ -434,13 +427,16 @@ document.addEventListener('DOMContentLoaded', function () {
         list.innerHTML = '';
         topWebsites.forEach((site, index) => {
             const li = document.createElement("li");
+            li.className = 'px-2 py-1 mb-1 bg-gray-200 rounded flex justify-between items-center';
             li.textContent = site;
             const removeBtn = document.createElement("button");
-            removeBtn.textContent = '-';
+            removeBtn.className = 'bg-red-500 text-white rounded px-2 py-1 hover:bg-red-600';
+            removeBtn.textContent = 'Delete️';
             removeBtn.onclick = function () {
                 topWebsites.splice(index, 1);
                 renderList();
             };
+
             li.appendChild(removeBtn);
             list.appendChild(li);
         });
@@ -501,7 +497,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    document.getElementById('resetZoom').addEventListener('click', function() {
+    document.getElementById('resetZoom').addEventListener('click', function () {
         dnsChart.resetZoom();
     });
 });
