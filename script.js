@@ -129,10 +129,12 @@ function getRandomColor() {
 async function warmUpDNSServers() {
     // Display the warm-up message
     // Use the same DNS server list and top websites for warm-up
-    for (const server of dnsServers) {
-        // Perform DNS queries for each website in the topWebsites list
-        await Promise.all(topWebsites.map(website => measureDNSSpeed(server.url, website, server.type, server.allowCors)));
-    }
+    const warmUpPromises = dnsServers.map(server =>
+        Promise.all(topWebsites.map(website =>
+            measureDNSSpeed(server.url, website, server.type, server.allowCors)))
+    );
+
+    await Promise.all(warmUpPromises);
     console.log("Warm-up phase completed");
 }
 
