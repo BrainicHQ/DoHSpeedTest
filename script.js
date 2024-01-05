@@ -21,38 +21,51 @@ const checkButton = document.getElementById('checkButton');
 const editButton = document.getElementById('editButton');
 const topWebsites = ['google.com', 'youtube.com', 'facebook.com', 'amazon.com', 'yahoo.com', 'wikipedia.org', 'twitter.com', 'instagram.com', 'linkedin.com', 'netflix.com'];
 // Global variable to store chart instance
-const dnsServers = [{name: "AdGuard", url: "https://dns.adguard-dns.com/dns-query"}, {
+const dnsServers = [{
+    name: "AdGuard", url: "https://dns.adguard-dns.com/dns-query"
+}, {
     name: "AliDNS", url: "https://dns.alidns.com/dns-query"
-}, //{ name: "Bebasid", url: "https://dns.bebasid.com/dns-query", type: "get" },
-    {
-        name: "OpenDNS", url: "https://doh.opendns.com/dns-query"
-    }, {name: "Cloudflare", url: "https://cloudflare-dns.com/dns-query", type: "get", allowCors: true}, {
-        name: "ControlD", url: "https://freedns.controld.com/p0"
-    }, //{ name: "Decloudus", url: "https://dns.decloudus.com/dns-query" , type: "get" },
-    {name: "DNS.SB", url: "https://doh.dns.sb/dns-query", type: "get", allowCors: true}, {
-        name: "DNSPod", url: "https://dns.pub/dns-query", type: "get", allowCors: true
-    }, {name: "Google", url: "https://dns.google/resolve", type: "get", allowCors: true}, {
-        name: "Mullvad", url: "https://doh.mullvad.net/dns-query"
-    }, {
-        name: "NextDNS", url: "https://dns.nextdns.io", type: "get"
-    }, {name: "OpenBLD", url: "https://ada.openbld.net/dns-query"}, {
-        name: "DNS0.EU", url: "https://zero.dns0.eu/"
-    }, {name: "Quad9", url: "https://dns.quad9.net/dns-query"}, {
-        name: "360", url: "https://doh.360.cn/dns-query"
-    }, //{ name: "Applied Privacy", url: "https://doh.applied-privacy.net/query" , type: "get" },
-    {
-        name: "Canadian Shield", url: "https://private.canadianshield.cira.ca/dns-query"
-    }, //{ name: "Comss.one", url: "https://dns.comss.one/dns-query", type: "get"  },
-    {
-        name: "Digitale Gesellschaft", url: "https://dns.digitale-gesellschaft.ch/dns-query"
-    }, {
-        name: "DNS for Family", url: "https://dns-doh.dnsforfamily.com/dns-query"
-    }, {name: "Restena", url: "https://kaitain.restena.lu/dns-query"}, {
-        name: "IIJ", url: "https://public.dns.iij.jp/dns-query"
-    }, {
-        name: "LibreDNS", url: "https://doh.libredns.gr/dns-query"
-    }, //{ name: "RoTunneling DNS", url: "https://dns.rotunneling.net/dns-query/public" , type: "get" },
-    {name: "Switch", url: "https://dns.switch.ch/dns-query"}];
+}, {
+    name: "OpenDNS", url: "https://doh.opendns.com/dns-query"
+}, {
+    name: "CleanBrowsing", url: "https://doh.cleanbrowsing.org/doh/family-filter/"
+}, {
+    name: "Cloudflare", url: "https://cloudflare-dns.com/dns-query", type: "get", allowCors: true
+}, {
+    name: "ControlD", url: "https://freedns.controld.com/p0"
+}, {
+    name: "DNS.SB", url: "https://doh.dns.sb/dns-query", type: "get", allowCors: true
+}, {
+    name: "DNSPod", url: "https://dns.pub/dns-query", type: "get", allowCors: true
+}, {
+    name: "Google", url: "https://dns.google/resolve", type: "get", allowCors: true
+}, {
+    name: "Mullvad", url: "https://doh.mullvad.net/dns-query"
+}, {
+    name: "NextDNS", url: "https://dns.nextdns.io", type: "get"
+}, {
+    name: "OpenBLD", url: "https://ada.openbld.net/dns-query"
+}, {
+    name: "DNS0.EU", url: "https://zero.dns0.eu/"
+}, {
+    name: "Quad9", url: "https://dns.quad9.net/dns-query"
+}, {
+    name: "360", url: "https://doh.360.cn/dns-query"
+}, {
+    name: "Canadian Shield", url: "https://private.canadianshield.cira.ca/dns-query"
+}, {
+    name: "Digitale Gesellschaft", url: "https://dns.digitale-gesellschaft.ch/dns-query"
+}, {
+    name: "DNS for Family", url: "https://dns-doh.dnsforfamily.com/dns-query"
+}, {
+    name: "Restena", url: "https://kaitain.restena.lu/dns-query"
+}, {
+    name: "IIJ", url: "https://public.dns.iij.jp/dns-query"
+}, {
+    name: "LibreDNS", url: "https://doh.libredns.gr/dns-query"
+}, {
+    name: "Switch", url: "https://dns.switch.ch/dns-query"
+}];
 
 let dnsChart;
 
@@ -129,10 +142,7 @@ function getRandomColor() {
 async function warmUpDNSServers() {
     // Display the warm-up message
     // Use the same DNS server list and top websites for warm-up
-    const warmUpPromises = dnsServers.map(server =>
-        Promise.all(topWebsites.map(website =>
-            measureDNSSpeed(server.url, website, server.type, server.allowCors)))
-    );
+    const warmUpPromises = dnsServers.map(server => Promise.all(topWebsites.map(website => measureDNSSpeed(server.url, website, server.type, server.allowCors))));
 
     await Promise.all(warmUpPromises);
     console.log("Warm-up phase completed");
