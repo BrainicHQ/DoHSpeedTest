@@ -22,49 +22,67 @@ const editButton = document.getElementById('editButton');
 const topWebsites = ['google.com', 'youtube.com', 'facebook.com', 'amazon.com', 'yahoo.com', 'wikipedia.org', 'twitter.com', 'instagram.com', 'linkedin.com', 'netflix.com'];
 // Global variable to store chart instance
 const dnsServers = [{
-    name: "AdGuard", url: "https://dns.adguard-dns.com/dns-query"
+    name: "AdGuard", url: "https://dns.adguard-dns.com/dns-query", ips: ["94.140.14.14", "94.140.15.15"]
 }, {
-    name: "AliDNS", url: "https://dns.alidns.com/dns-query"
+    name: "AliDNS", url: "https://dns.alidns.com/dns-query", ips: ["223.5.5.5", "223.6.6.6"]
 }, {
-    name: "OpenDNS", url: "https://doh.opendns.com/dns-query"
+    name: "OpenDNS", url: "https://doh.opendns.com/dns-query", ips: ["208.67.222.222", "208.67.220.220"]
 }, {
-    name: "CleanBrowsing", url: "https://doh.cleanbrowsing.org/doh/family-filter/"
+    name: "CleanBrowsing",
+    url: "https://doh.cleanbrowsing.org/doh/family-filter/",
+    ips: ["185.228.168.9", "185.228.169.9"]
 }, {
-    name: "Cloudflare", url: "https://cloudflare-dns.com/dns-query", type: "get", allowCors: true
+    name: "Cloudflare",
+    url: "https://cloudflare-dns.com/dns-query",
+    type: "get",
+    allowCors: true,
+    ips: ["1.1.1.1", "1.0.0.1"]
 }, {
-    name: "ControlD", url: "https://freedns.controld.com/p0"
+    name: "ControlD", url: "https://freedns.controld.com/p0", ips: ["76.76.2.0", "76.223.122.150"]
 }, {
-    name: "DNS.SB", url: "https://doh.dns.sb/dns-query", type: "get", allowCors: true
+    name: "DNS.SB",
+    url: "https://doh.dns.sb/dns-query",
+    type: "get",
+    allowCors: true,
+    ips: ["185.222.222.222", "185.184.222.222"]
 }, {
-    name: "DNSPod", url: "https://dns.pub/dns-query", type: "get", allowCors: true
+    name: "DNSPod",
+    url: "https://dns.pub/dns-query",
+    type: "get",
+    allowCors: true,
+    ips: ["119.29.29.29", "182.254.116.116"]
 }, {
-    name: "Google", url: "https://dns.google/resolve", type: "get", allowCors: true
+    name: "Google", url: "https://dns.google/resolve", type: "get", allowCors: true, ips: ["8.8.8.8", "8.8.4.4"]
 }, {
-    name: "Mullvad", url: "https://doh.mullvad.net/dns-query"
+    name: "Mullvad", url: "https://doh.mullvad.net/dns-query", ips: ["193.138.218.74", "194.242.2.2"]
 }, {
-    name: "NextDNS", url: "https://dns.nextdns.io", type: "get"
+    name: "NextDNS", url: "https://dns.nextdns.io", type: "get", ips: ["45.90.28.0", "45.90.30.0"]
 }, {
-    name: "OpenBLD", url: "https://ada.openbld.net/dns-query"
+    name: "OpenBLD", url: "https://ada.openbld.net/dns-query", ips: ["146.112.41.2", "146.112.41.102"]
 }, {
-    name: "DNS0.EU", url: "https://zero.dns0.eu/"
+    name: "DNS0.EU", url: "https://zero.dns0.eu/", ips: ["5.9.149.169", "195.201.169.147"]
 }, {
-    name: "Quad9", url: "https://dns.quad9.net/dns-query"
+    name: "Quad9", url: "https://dns.quad9.net/dns-query", ips: ["9.9.9.9", "149.112.112.112"]
 }, {
-    name: "360", url: "https://doh.360.cn/dns-query"
+    name: "360", url: "https://doh.360.cn/dns-query", ips: ["101.226.4.6", "180.163.224.54"]
 }, {
-    name: "Canadian Shield", url: "https://private.canadianshield.cira.ca/dns-query"
+    name: "Canadian Shield",
+    url: "https://private.canadianshield.cira.ca/dns-query",
+    ips: ["149.112.121.10", "149.112.122.10"]
 }, {
-    name: "Digitale Gesellschaft", url: "https://dns.digitale-gesellschaft.ch/dns-query"
+    name: "Digitale Gesellschaft",
+    url: "https://dns.digitale-gesellschaft.ch/dns-query",
+    ips: ["185.95.218.42", "185.95.218.43"]
 }, {
-    name: "DNS for Family", url: "https://dns-doh.dnsforfamily.com/dns-query"
+    name: "DNS for Family", url: "https://dns-doh.dnsforfamily.com/dns-query", ips: ["94.130.180.225", "78.47.64.161"]
 }, {
-    name: "Restena", url: "https://kaitain.restena.lu/dns-query"
+    name: "Restena", url: "https://kaitain.restena.lu/dns-query", ips: ["158.64.1.29", "158.64.1.30"]
 }, {
-    name: "IIJ", url: "https://public.dns.iij.jp/dns-query"
+    name: "IIJ", url: "https://public.dns.iij.jp/dns-query", ips: ["203.180.164.45", "203.180.166.45"]
 }, {
-    name: "LibreDNS", url: "https://doh.libredns.gr/dns-query"
+    name: "LibreDNS", url: "https://doh.libredns.gr/dns-query", ips: ["116.202.176.26", "147.135.76.183"]
 }, {
-    name: "Switch", url: "https://dns.switch.ch/dns-query"
+    name: "Switch", url: "https://dns.switch.ch/dns-query", ips: ["130.59.31.248", "130.59.31.251"]
 }];
 
 let dnsChart;
@@ -295,7 +313,8 @@ function updateResult(server) {
 
     // Update row with basic information
     row.innerHTML = `
-        <td class="text-left py-2 px-4">${server.name} <span class="copy-icon" onclick="copyToClipboard('${server.url}', this)">📋</span></td>
+        <td class="text-left py-2 px-4">${server.name} 
+        <span class="copy-icon" onclick="copyToClipboard('DoH Server URL: ${server.url}' + '\\n' + 'IP Addresses: ${server.ips.join(', ')}', this)">📋</span></td>
         <td class="text-center py-2 px-4">${server.speed.min !== 'Unavailable' ? server.speed.min.toFixed(2) : 'Unavailable'}</td>
         <td class="text-center py-2 px-4">${server.speed.median !== 'Unavailable' ? server.speed.median.toFixed(2) : 'Unavailable'}</td>
         <td class="text-center py-2 px-4">${server.speed.max !== 'Unavailable' ? server.speed.max.toFixed(2) : 'Unavailable'}</td>
