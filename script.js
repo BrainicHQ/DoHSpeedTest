@@ -166,14 +166,23 @@ async function warmUpDNSServers() {
     console.log("Warm-up phase completed");
 }
 
+async function updateLoadingMessage(message) {
+    document.getElementById('loadingMessage').innerHTML = `${message} <div class="spinner">
+        <div class="magnify-glass"></div>
+        <div class="dot dot-1"></div>
+        <div class="dot dot-2"></div>
+        <div class="dot dot-3"></div>
+    </div>`;
+}
+
 checkButton.addEventListener('click', async function () {
     this.disabled = true;
     editButton.disabled = true; // Disable the Edit button
     document.getElementById('loadingMessage').classList.remove('hidden');
 
-    document.getElementById('loadingMessage').innerHTML = 'Warming up DNS servers <img height="70" width="70" src="loading.gif"  alt="Loading" style="display: inline; vertical-align: middle;" />';
+    await updateLoadingMessage('Warming up DNS servers');
     await warmUpDNSServers();
-    document.getElementById('loadingMessage').innerHTML = 'Analyzing DNS servers <img height="70" width="70" src="loading.gif" alt="Loading" style="display: inline; vertical-align: middle;" />';
+    await updateLoadingMessage('Analyzing DNS servers');
     await performDNSTests();
 
     document.getElementById('loadingMessage').classList.add('hidden');
@@ -298,13 +307,12 @@ function updateResult(server) {
     if (!row) {
         row = document.createElement('tr');
         row.setAttribute('data-server-name', server.name);
-        row.classList.add('border-b', 'border-gray-300', 'hover:bg-gray-200');
+        row.classList.add('border-b', 'border-gray-300', 'hover:bg-gray-200', 'dark:border-gray-600', 'dark:hover:bg-gray-700');
         table.appendChild(row);
 
         // Create a new row for detailed information
         detailsRow = document.createElement('tr');
-        detailsRow.classList.add('details-row', 'hidden'); // Hide by default
-        detailsRow.classList.add('border-b', 'border-gray-300', 'hover:bg-gray-200');
+        detailsRow.classList.add('details-row', 'hidden', 'border-b', 'border-gray-300', 'hover:bg-gray-200', 'dark:border-gray-600', 'dark:hover:bg-gray-700'); // Hide by default
         table.appendChild(detailsRow);
     } else {
         // If the row already exists, get the next row as the details row
@@ -313,16 +321,16 @@ function updateResult(server) {
 
     // Update row with basic information
     row.innerHTML = `
-        <td class="text-left py-2 px-4">${server.name} 
+        <td class="text-left py-2 px-4 dark:text-gray-300">${server.name} 
         <span class="copy-icon" onclick="copyToClipboard('DoH Server URL: ${server.url}' + '\\n' + 'IP Addresses: ${server.ips.join(', ')}', this)">📋</span></td>
-        <td class="text-center py-2 px-4">${server.speed.min !== 'Unavailable' ? server.speed.min.toFixed(2) : 'Unavailable'}</td>
-        <td class="text-center py-2 px-4">${server.speed.median !== 'Unavailable' ? server.speed.median.toFixed(2) : 'Unavailable'}</td>
-        <td class="text-center py-2 px-4">${server.speed.max !== 'Unavailable' ? server.speed.max.toFixed(2) : 'Unavailable'}</td>
+        <td class="text-center py-2 px-4 dark:text-gray-300">${server.speed.min !== 'Unavailable' ? server.speed.min.toFixed(2) : 'Unavailable'}</td>
+        <td class="text-center py-2 px-4 dark:text-gray-300">${server.speed.median !== 'Unavailable' ? server.speed.median.toFixed(2) : 'Unavailable'}</td>
+        <td class="text-center py-2 px-4 dark:text-gray-300">${server.speed.max !== 'Unavailable' ? server.speed.max.toFixed(2) : 'Unavailable'}</td>
     `;
 
     // Populate the detailed view with timings for each hostname
     detailsRow.innerHTML = `
-    <td colspan="4" class="py-2 px-4">
+    <td colspan="4" class="py-2 px-4 dark:bg-gray-800 dark:text-gray-300">
         <div>Timings for each hostname:</div>
         <ul>
             ${server.individualResults.map(result => {
@@ -449,7 +457,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const modal = document.getElementById("websiteModal");
     const btn = document.getElementById("editButton"); // Button that opens the modal
     const span = document.getElementsByClassName("close")[0];
-    const addBtn = document.getElementById("addWebsite");
+    const addBtn = document.getElementById("addHostname");
     const input = document.getElementById("newWebsite");
     const list = document.getElementById("websiteList");
 
@@ -458,11 +466,16 @@ document.addEventListener('DOMContentLoaded', function () {
         list.innerHTML = '';
         topWebsites.forEach((site, index) => {
             const li = document.createElement("li");
-            li.className = 'px-2 py-1 mb-1 bg-gray-200 rounded flex justify-between items-center';
-            li.textContent = site;
+            // Updated class list to include border-bottom for better separation
+            li.className = 'px-2 py-1 mb-1 bg-gray-200 rounded flex justify-between items-center border-b border-gray-300 dark:bg-gray-700 dark:border-gray-600';
+
+            const siteText = document.createElement("span");
+            siteText.textContent = site;
+            li.appendChild(siteText);  // Properly append the text content to the list item
+
             const removeBtn = document.createElement("button");
-            removeBtn.className = 'bg-red-500 text-white rounded px-2 py-1 hover:bg-red-600';
-            removeBtn.textContent = 'Delete️';
+            removeBtn.className = 'bg-red-500 text-white rounded px-2 py-1 hover:bg-red-600 dark:bg-red-700 dark:hover:bg-red-800';
+            removeBtn.textContent = 'Delete';
             removeBtn.onclick = function () {
                 topWebsites.splice(index, 1);
                 renderList();
