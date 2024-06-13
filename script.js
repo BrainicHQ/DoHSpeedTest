@@ -168,7 +168,6 @@ async function warmUpDNSServers() {
 
 async function updateLoadingMessage(message) {
     document.getElementById('loadingMessage').innerHTML = `${message} <div class="spinner">
-        <div class="magnify-glass"></div>
         <div class="dot dot-1"></div>
         <div class="dot dot-2"></div>
         <div class="dot dot-3"></div>

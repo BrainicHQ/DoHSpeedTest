@@ -23,18 +23,6 @@
             vertical-align: middle;
         }
 
-        .magnify-glass {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 24px;
-            height: 24px;
-            background-image: url('magnifying-glass-icon.png'); /* Replace with actual path to magnifying glass icon */
-            background-size: cover;
-            transform: translate(-50%, -50%) rotate(0deg);
-            animation: rotate 2s linear infinite;
-        }
-
         .dot {
             position: absolute;
             width: 10px;
@@ -60,15 +48,6 @@
             left: 70%;
             top: 50%;
             animation-delay: 0s;
-        }
-
-        @keyframes rotate {
-            0% {
-                transform: translate(-50%, -50%) rotate(0deg);
-            }
-            100% {
-                transform: translate(-50%, -50%) rotate(360deg);
-            }
         }
 
         @keyframes dot-blink {
