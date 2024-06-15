@@ -44,7 +44,7 @@ const dnsServers = [{
     url: "https://doh.dns.sb/dns-query",
     type: "get",
     allowCors: true,
-    ips: ["185.222.222.222", "185.184.222.222"]
+    ips: ["185.222.222.222", "45.11.45.11"] #updated_the_ip_adress
 }, {
     name: "DNSPod",
     url: "https://dns.pub/dns-query",
@@ -60,9 +60,17 @@ const dnsServers = [{
 }, {
     name: "OpenBLD", url: "https://ada.openbld.net/dns-query", ips: ["146.112.41.2", "146.112.41.102"]
 }, {
-    name: "DNS0.EU", url: "https://zero.dns0.eu/", ips: ["5.9.149.169", "195.201.169.147"]
+    name: "zero.dns0.eu", url: "https://zero.dns0.eu/", ips: ["193.110.81.9", "185.253.5.9"] #I_changed_the_dns_name_to_differentiate_it_from_the_base_DNS0.EU_of_ZERO.DNS0.EU_and_changed_the_outdated_IP_addresses
+}, {
+    name: "dns0.eu", url: "https://dns0.eu/", ips: ["193.110.81.0", "185.253.5.0"] #I_added_dns0.eu_base
 }, {
     name: "Quad9", url: "https://dns.quad9.net/dns-query", ips: ["9.9.9.9", "149.112.112.112"]
+}, {
+    name: "Quad9 W/ECS", url: "https://dns11.quad9.net/dns-query", ips: ["9.9.9.11", "149.112.112.11"] #added_the_Quad9_with_ECS_ennabled
+}, {
+    name: "applied-privacy", url: "https://doh.applied-privacy.net/query", ips: ["146.255.56.98"] #added_the_dns_of_the_Foundation_for_Applied_Privacy
+}, {
+    name: "uncensored-dns", url: "https://anycast.uncensoreddns.org/dns-query", ips: ["91.239.100.100", "89.233.43.71"] #added_the_dns_of_the_uncensored_dns
 }, {
     name: "360", url: "https://doh.360.cn/dns-query", ips: ["101.226.4.6", "180.163.224.54"]
 }, {
