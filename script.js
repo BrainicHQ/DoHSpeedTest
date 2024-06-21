@@ -44,7 +44,7 @@ const dnsServers = [{
     url: "https://doh.dns.sb/dns-query",
     type: "get",
     allowCors: true,
-    ips: ["185.222.222.222", "185.184.222.222"]
+    ips: ["185.222.222.222", "45.11.45.11"]
 }, {
     name: "DNSPod",
     url: "https://dns.pub/dns-query",
@@ -60,7 +60,7 @@ const dnsServers = [{
 }, {
     name: "OpenBLD", url: "https://ada.openbld.net/dns-query", ips: ["146.112.41.2", "146.112.41.102"]
 }, {
-    name: "DNS0.EU", url: "https://zero.dns0.eu/", ips: ["5.9.149.169", "195.201.169.147"]
+    name: "DNS0.EU", url: "https://zero.dns0.eu/", ips: ["193.110.81.9", "185.253.5.9"]
 }, {
     name: "Quad9", url: "https://dns.quad9.net/dns-query", ips: ["9.9.9.9", "149.112.112.112"]
 }, {
@@ -83,6 +83,10 @@ const dnsServers = [{
     name: "LibreDNS", url: "https://doh.libredns.gr/dns-query", ips: ["116.202.176.26", "147.135.76.183"]
 }, {
     name: "Switch", url: "https://dns.switch.ch/dns-query", ips: ["130.59.31.248", "130.59.31.251"]
+}, {
+    name: "Foundation for Applied Privacy", url: "https://doh.applied-privacy.net/query", ips: ["146.255.56.98"],
+}, {
+    name: "UncensoredDNS", url: "https://anycast.uncensoreddns.org/dns-query", ips: ["91.239.100.100", "89.233.43.71"]
 }];
 
 let dnsChart;
