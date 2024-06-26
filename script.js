@@ -597,6 +597,32 @@ document.addEventListener('DOMContentLoaded', function () {
         input.value = ''; // Clear the input field
     }
 
+    addDNSBtn.onclick = function () {
+        const dnsUrl = document.getElementById('newDNS');
+        const dnsName = document.getElementById('dnsName');
+        const dnsIPs = document.getElementById('dnsIPs');
+        if (!dnsUrl.value || !dnsName.value || !dnsIPs.value) {
+            alert("Please fill in all the fields.");
+            return;
+        }
+        if (!dnsUrl.value.startsWith('https://') && !dnsUrl.value.startsWith('http://')) {
+            dnsUrl.value = 'https://' + dnsUrl.value;
+        }
+        if (!dnsServers.some(dns => dns.url === dnsUrl.value)) {
+            dnsServers.push({
+                url: dnsUrl.value,
+                name: dnsName.value,
+                ips: dnsIPs.value.split(',').map(ip => ip.trim())
+            });
+            renderDNSList();
+        } else {
+            alert("this dns is already in the list.");
+        }
+        dnsUrl.value = '';
+        dnsName.value = '';
+        dnsIPs.value = '';
+    }
+
 
     // Close the modals when clicking outside of it
     window.onclick = function (event) {
