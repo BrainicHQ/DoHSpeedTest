@@ -18,7 +18,8 @@
  * along with DoHSpeedTest. If not, see <http://www.gnu.org/licenses/>.
  */
 const checkButton = document.getElementById('checkButton');
-const editButton = document.getElementById('editButton');
+const editHostButton = document.getElementById('editHostButton');
+const editDNSButton = document.getElementById('editDNSButton');
 const topWebsites = ['google.com', 'youtube.com', 'facebook.com', 'amazon.com', 'yahoo.com', 'wikipedia.org', 'twitter.com', 'instagram.com', 'linkedin.com', 'netflix.com'];
 // Global variable to store chart instance
 const dnsServers = [{
@@ -180,7 +181,8 @@ async function updateLoadingMessage(message) {
 
 checkButton.addEventListener('click', async function () {
     this.disabled = true;
-    editButton.disabled = true; // Disable the Edit button
+    editHostButton.disabled = true; // Disable the Edit button
+    editDNSButton.disabled = true; // Disable the Edit button
     document.getElementById('loadingMessage').classList.remove('hidden');
 
     await updateLoadingMessage('Warming up DNS servers');
@@ -190,7 +192,8 @@ checkButton.addEventListener('click', async function () {
 
     document.getElementById('loadingMessage').classList.add('hidden');
     this.disabled = false;
-    editButton.disabled = false; // Re-enable the Edit button
+    editHostButton.disabled = false; // Re-enable the Edit button
+    editDNSButton.disabled = false; // Re-enable the Edit button
 });
 
 async function performDNSTests() {
@@ -457,16 +460,20 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    const modal = document.getElementById("websiteModal");
-    const btn = document.getElementById("editButton"); // Button that opens the modal
-    const span = document.getElementsByClassName("close")[0];
-    const addBtn = document.getElementById("addHostname");
+    const hostModal = document.getElementById("websiteModal");
+    const dnsModal = document.getElementById("dnsModal");
+    const hostBtn = document.getElementById("editHostButton"); // Button that opens the hostModal
+    const dnsBtn = document.getElementById("editDNSButton"); // Button that opens the dnsModal
+    const spans = document.getElementsByClassName("close");
+    const addHostBtn = document.getElementById("addHostname");
+    const addDNSBtn = document.getElementById("addDNS");
     const input = document.getElementById("newWebsite");
-    const list = document.getElementById("websiteList");
+    const hostList = document.getElementById("websiteList");
+    const dnsList = document.getElementById("dnsList");
 
     // Function to render the list
-    function renderList() {
-        list.innerHTML = '';
+    function renderHostList() {
+        hostList.innerHTML = '';
         topWebsites.forEach((site, index) => {
             const li = document.createElement("li");
             // Updated class list to include border-bottom for better separation
@@ -481,20 +488,70 @@ document.addEventListener('DOMContentLoaded', function () {
             removeBtn.textContent = 'Delete';
             removeBtn.onclick = function () {
                 topWebsites.splice(index, 1);
-                renderList();
+                renderHostList();
             };
 
             li.appendChild(removeBtn);
-            list.appendChild(li);
+            hostList.appendChild(li);
         });
         // Disable the checkButton if topWebsites is empty
         checkButton.disabled = topWebsites.length === 0;
     }
 
-    // Open the modal
-    btn.onclick = function () {
-        modal.style.display = "block";
-        renderList();
+    // Function to render the DNS list
+    function renderDNSList() {
+        dnsList.innerHTML = '';
+        dnsServers.forEach((dns, index) => {
+            const li = document.createElement("li");
+            li.className = 'px-2 py-1 mb-1 bg-gray-200 rounded flex justify-between items-center border-b border-gray-300 dark:bg-gray-700 dark:border-gray-600';
+
+            const dnsContainer = document.createElement("div");
+            dnsContainer.className = 'flex justify-between w-full text-left';
+
+            const dnsName = document.createElement("span");
+            dnsName.textContent = dns.name;
+            dnsName.className = 'mr-2 w-3/4';
+
+            const dnsUrl = document.createElement("span");
+            dnsUrl.textContent = dns.url;
+            dnsUrl.className = 'mr-2 w-3/4';
+
+            const dnsIPs = document.createElement("span");
+            dnsIPs.textContent = dns.ips.join(', ');
+            dnsIPs.className = 'mr-2 w-3/4';
+
+            dnsContainer.appendChild(dnsName);
+            dnsContainer.appendChild(dnsUrl);
+            dnsContainer.appendChild(dnsIPs);
+            li.appendChild(dnsContainer);
+
+            // Create and append delete button
+            const removeBtn = document.createElement("button");
+            removeBtn.className = 'bg-red-500 text-white rounded px-2 py-1 hover:bg-red-600 dark:bg-red-700 dark:hover:bg-red-800';
+            removeBtn.textContent = 'Delete';
+            removeBtn.onclick = function () {
+                dnsServers.splice(index, 1); // Remove the site from the array
+                renderDNSList();
+            };
+
+            li.appendChild(removeBtn);
+            dnsList.appendChild(li);
+        });
+
+        // Disable the checkButton if dnsServers is empty
+        checkButton.disabled = dnsServers.length === 0;
+    }
+
+    // Open the hostModal
+    hostBtn.onclick = function () {
+        hostModal.style.display = "block";
+        renderHostList();
+    }
+
+    // Open the dnsModal
+    dnsBtn.onclick = function () {
+        dnsModal.style.display = "block";
+        renderDNSList();
     }
 
     function validateAndExtractHost(input) {
@@ -516,18 +573,21 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    // Close the modal
-    span.onclick = function () {
-        modal.style.display = "none";
+    // loop through the spans and set the onclick event
+    for (let i = 0; i < spans.length; i++) {
+        spans[i].onclick = function () {
+            hostModal.style.display = "none";
+            dnsModal.style.display = "none";
+        }
     }
 
     // Add new website
-    addBtn.onclick = function () {
+    addHostBtn.onclick = function () {
         const host = validateAndExtractHost(input.value);
         if (host) {
             if (!topWebsites.includes(host)) {
                 topWebsites.push(host);
-                renderList();
+                renderHostList();
             } else {
                 alert("This website is already in the list.");
             }
@@ -537,10 +597,13 @@ document.addEventListener('DOMContentLoaded', function () {
         input.value = ''; // Clear the input field
     }
 
-    // Close the modal when clicking outside of it
+
+    // Close the modals when clicking outside of it
     window.onclick = function (event) {
-        if (event.target === modal) {
-            modal.style.display = "none";
+        if (event.target === hostModal) {
+            hostModal.style.display = "none";
+        } else if (event.target === dnsModal) {
+            dnsModal.style.display = "none";
         }
     }
 
