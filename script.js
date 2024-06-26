@@ -17,12 +17,16 @@
  * You should have received a copy of the GNU General Public License
  * along with DoHSpeedTest. If not, see <http://www.gnu.org/licenses/>.
  */
-const checkButton = document.getElementById('checkButton');
-const editHostButton = document.getElementById('editHostButton');
-const editDNSButton = document.getElementById('editDNSButton');
-const topWebsites = ['google.com', 'youtube.com', 'facebook.com', 'amazon.com', 'yahoo.com', 'wikipedia.org', 'twitter.com', 'instagram.com', 'linkedin.com', 'netflix.com'];
+const checkButton = document.getElementById('check-button');
+const editHostButton = document.getElementById('edit-host-button');
+const editDNSButton = document.getElementById('edit-dns-button');
+const topWebsites = [];
+const topWebsitesDefault = ['google.com', 'youtube.com', 'facebook.com', 'amazon.com', 'yahoo.com', 'wikipedia.org', 'twitter.com', 'instagram.com', 'linkedin.com', 'netflix.com'];
 // Global variable to store chart instance
-const dnsServers = [{
+let dnsChart;
+
+const dnsServers = [];
+const dnsServersDefault = [{
     name: "AdGuard", url: "https://dns.adguard-dns.com/dns-query", ips: ["94.140.14.14", "94.140.15.15"]
 }, {
     name: "AliDNS", url: "https://dns.alidns.com/dns-query", ips: ["223.5.5.5", "223.6.6.6"]
@@ -90,11 +94,31 @@ const dnsServers = [{
     name: "UncensoredDNS", url: "https://anycast.uncensoreddns.org/dns-query", ips: ["91.239.100.100", "89.233.43.71"]
 }];
 
-let dnsChart;
+function saveSettings() {
+    localStorage.setItem('topWebsites', JSON.stringify(topWebsites));
+    localStorage.setItem('dnsServers', JSON.stringify(dnsServers));
+}
+
+function loadSettings() {
+    if (localStorage.getItem('topWebsites')) {
+        topWebsites.length = 0;
+        topWebsites.push(...JSON.parse(localStorage.getItem('topWebsites')));
+    } else {
+        topWebsites.length = 0;
+        topWebsites.push(...topWebsitesDefault);
+    }
+    if (localStorage.getItem('dnsServers')) {
+        dnsServers.length = 0;
+        dnsServers.push(...JSON.parse(localStorage.getItem('dnsServers')));
+    } else {
+        dnsServers.length = 0;
+        dnsServers.push(...dnsServersDefault);
+    }
+}
 
 function updateChartWithData(server) {
-    const chartContainer = document.getElementById('chartContainer');
-    const ctx = document.getElementById('dnsChart').getContext('2d');
+    const chartContainer = document.getElementById('chart-container');
+    const ctx = document.getElementById('dns-chart').getContext('2d');
 
     // Display the chart container if it's hidden and there's valid data
     if (server.speed.min !== 'Unavailable' && window.innerWidth > 768) {
@@ -172,7 +196,7 @@ async function warmUpDNSServers() {
 }
 
 async function updateLoadingMessage(message) {
-    document.getElementById('loadingMessage').innerHTML = `${message} <div class="spinner">
+    document.getElementById('loading-message').innerHTML = `${message} <div class="spinner">
         <div class="dot dot-1"></div>
         <div class="dot dot-2"></div>
         <div class="dot dot-3"></div>
@@ -183,14 +207,14 @@ checkButton.addEventListener('click', async function () {
     this.disabled = true;
     editHostButton.disabled = true; // Disable the Edit button
     editDNSButton.disabled = true; // Disable the Edit button
-    document.getElementById('loadingMessage').classList.remove('hidden');
+    document.getElementById('loading-message').classList.remove('hidden');
 
     await updateLoadingMessage('Warming up DNS servers');
     await warmUpDNSServers();
     await updateLoadingMessage('Analyzing DNS servers');
     await performDNSTests();
 
-    document.getElementById('loadingMessage').classList.add('hidden');
+    document.getElementById('loading-message').classList.add('hidden');
     this.disabled = false;
     editHostButton.disabled = false; // Re-enable the Edit button
     editDNSButton.disabled = false; // Re-enable the Edit button
@@ -306,7 +330,7 @@ function buildDNSQuery(hostname) {
 }
 
 function updateResult(server) {
-    const table = document.getElementById('resultsTable').getElementsByTagName('tbody')[0];
+    const table = document.getElementById('results-table').getElementsByTagName('tbody')[0];
     let row = document.querySelector(`tr[data-server-name="${server.name}"]`);
     let detailsRow;
 
@@ -359,7 +383,7 @@ function updateResult(server) {
 }
 
 function sortTable(columnIndex) {
-    let table = document.getElementById("resultsTable");
+    let table = document.getElementById("results-table");
     let rows = Array.from(table.getElementsByTagName("tr"));
 
     let startIndex = 1; // Adjust this index as per your table structure
@@ -441,7 +465,7 @@ window.addEventListener('resize', function () {
 });
 
 function updateChartVisibility() {
-    const chartContainer = document.getElementById('chartContainer');
+    const chartContainer = document.getElementById('chart-container');
     if (window.innerWidth < 768) {
         chartContainer.classList.add('hidden');
     }
@@ -449,8 +473,9 @@ function updateChartVisibility() {
 
 // JavaScript to handle modal and list manipulation
 document.addEventListener('DOMContentLoaded', function () {
+    loadSettings();
     updateChartVisibility();
-    document.getElementById('resultsTable').addEventListener('click', function (event) {
+    document.getElementById('results-table').addEventListener('click', function (event) {
         let row = event.target.closest('tr');
         if (row && !row.classList.contains('details-row')) {
             let detailsRow = row.nextElementSibling;
@@ -460,16 +485,18 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    const hostModal = document.getElementById("websiteModal");
-    const dnsModal = document.getElementById("dnsModal");
-    const hostBtn = document.getElementById("editHostButton"); // Button that opens the hostModal
-    const dnsBtn = document.getElementById("editDNSButton"); // Button that opens the dnsModal
-    const spans = document.getElementsByClassName("close");
-    const addHostBtn = document.getElementById("addHostname");
-    const addDNSBtn = document.getElementById("addDNS");
+    const hostModal = document.getElementById("website-modal");
+    const dnsModal = document.getElementById("dns-modal");
+    const hostBtn = document.getElementById("edit-host-button"); // Button that opens the hostModal
+    const dnsBtn = document.getElementById("edit-dns-button"); // Button that opens the dnsModal
+    const allCloseBtn = document.getElementsByClassName("close");
+    const addHostBtn = document.getElementById("add-host-name");
+    const addDNSBtn = document.getElementById("add-dns");
     const input = document.getElementById("newWebsite");
-    const hostList = document.getElementById("websiteList");
-    const dnsList = document.getElementById("dnsList");
+    const hostList = document.getElementById("website-list");
+    const dnsList = document.getElementById("dns-list");
+    const resetWebsitesBtn = document.getElementById("reset-websites");
+    const resetDNSBtn = document.getElementById("reset-dns");
 
     // Function to render the list
     function renderHostList() {
@@ -489,6 +516,7 @@ document.addEventListener('DOMContentLoaded', function () {
             removeBtn.onclick = function () {
                 topWebsites.splice(index, 1);
                 renderHostList();
+                saveSettings();
             };
 
             li.appendChild(removeBtn);
@@ -532,6 +560,7 @@ document.addEventListener('DOMContentLoaded', function () {
             removeBtn.onclick = function () {
                 dnsServers.splice(index, 1); // Remove the site from the array
                 renderDNSList();
+                saveSettings();
             };
 
             li.appendChild(removeBtn);
@@ -573,12 +602,26 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    // loop through the spans and set the onclick event
-    for (let i = 0; i < spans.length; i++) {
-        spans[i].onclick = function () {
+    // loop through the allCloseBtn and set the onclick event
+    for (let i = 0; i < allCloseBtn.length; i++) {
+        allCloseBtn[i].onclick = function () {
             hostModal.style.display = "none";
             dnsModal.style.display = "none";
         }
+    }
+
+    resetWebsitesBtn.onclick = function () {
+        topWebsites.length = 0;
+        topWebsites.push(...topWebsitesDefault);
+        saveSettings();
+        renderHostList();
+    }
+
+    resetDNSBtn.onclick = function () {
+        dnsServers.length = 0;
+        dnsServers.push(...dnsServersDefault);
+        saveSettings();
+        renderDNSList();
     }
 
     // Add new website
@@ -595,12 +638,13 @@ document.addEventListener('DOMContentLoaded', function () {
             alert("Please enter a valid URL or hostname.");
         }
         input.value = ''; // Clear the input field
+        saveSettings()
     }
 
     addDNSBtn.onclick = function () {
-        const dnsUrl = document.getElementById('newDNS');
-        const dnsName = document.getElementById('dnsName');
-        const dnsIPs = document.getElementById('dnsIPs');
+        const dnsUrl = document.getElementById('new-dns');
+        const dnsName = document.getElementById('dns-name');
+        const dnsIPs = document.getElementById('dns-ips');
         if (!dnsUrl.value || !dnsName.value || !dnsIPs.value) {
             alert("Please fill in all the fields.");
             return;
@@ -621,6 +665,7 @@ document.addEventListener('DOMContentLoaded', function () {
         dnsUrl.value = '';
         dnsName.value = '';
         dnsIPs.value = '';
+        saveSettings()
     }
 
 
@@ -633,7 +678,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    document.getElementById('resetZoom').addEventListener('click', function () {
+    document.getElementById('reset-zoom').addEventListener('click', function () {
         dnsChart.resetZoom();
     });
 });
