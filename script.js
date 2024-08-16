@@ -211,10 +211,18 @@ async function performDNSTests() {
             const min = validResults[0];
             const max = validResults[validResults.length - 1];
             const median = validResults.length % 2 === 0 ? (validResults[validResults.length / 2 - 1] + validResults[validResults.length / 2]) / 2 : validResults[Math.floor(validResults.length / 2)];
+            
+            let sum = 0;
+            for (let i = 0; i < validResults.length; i++) {
+                sum += validResults[i];
+            }
 
-            server.speed = {min, median, max};
+            const avg = sum / validResults.length;
+                        
+
+            server.speed = {min, median, max, avg};
         } else {
-            server.speed = {min: 'Unavailable', median: 'Unavailable', max: 'Unavailable'};
+            server.speed = {min: 'Unavailable', median: 'Unavailable', max: 'Unavailable', avg: 'Unavailable'};
         }
 
         updateResult(server);
@@ -328,6 +336,7 @@ function updateResult(server) {
         <span class="copy-icon" onclick="copyToClipboard('DoH Server URL: ${server.url}' + '\\n' + 'IP Addresses: ${server.ips.join(', ')}', this)">📋</span></td>
         <td class="text-center py-2 px-4 dark:text-gray-300">${server.speed.min !== 'Unavailable' ? server.speed.min.toFixed(2) : 'Unavailable'}</td>
         <td class="text-center py-2 px-4 dark:text-gray-300">${server.speed.median !== 'Unavailable' ? server.speed.median.toFixed(2) : 'Unavailable'}</td>
+        <td class="text-center py-2 px-4 dark:text-gray-300"> ${server.speed.avg !== 'Unavailable' ? server.speed.avg.toFixed(2) : 'Unavailable'}</td>
         <td class="text-center py-2 px-4 dark:text-gray-300">${server.speed.max !== 'Unavailable' ? server.speed.max.toFixed(2) : 'Unavailable'}</td>
     `;
 
