@@ -89,6 +89,8 @@ const dnsServers = [{
     name: "Foundation for Applied Privacy", url: "https://doh.applied-privacy.net/query", ips: ["146.255.56.98"],
 }, {
     name: "UncensoredDNS", url: "https://anycast.uncensoreddns.org/dns-query", ips: ["91.239.100.100", "89.233.43.71"]
+}, {
+    name: "UK DNS Privacy Project", url: "https://resolver.dnsprivacy.org.uk/dns-query", ips: ["209.250.227.42", "64.176.190.82"]
 }];
 
 let dnsChart;
