@@ -110,9 +110,18 @@
             Edit hosts list
         </span>
     </div>
+    <div class="group relative inline-block">
+        <button id="editDoHButton"
+                class="bg-white text-2xl text-white bg-transparent border-none rounded-full w-10 h-10 flex justify-center items-center shadow-lg">
+            🛡️
+        </button>
+        <span class="pointer-events-none absolute top-full right-0 transform translate-y-2 w-max bg-black text-white text-xs rounded py-1 px-2 opacity-0 group-hover:opacity-100 transition-opacity">
+            Add DoH servers
+        </span>
+    </div>
 </div>
 <div id="loadingMessage" class="hidden"></div>
-<!-- Modal -->
+<!-- Modal for editing DNS test hosts -->
 <div id="websiteModal" class="hidden fixed z-50 inset-0 flex items-center justify-center bg-black bg-opacity-60">
     <div class="modal-content relative bg-white pt-4 pb-2 px-4 rounded-lg shadow-xl w-full sm:w-11/12 md:w-1/2 mx-auto my-2 sm:my-4 overflow-hidden dark:bg-gray-700 dark:text-white">
         <span class="close absolute top-2 right-2 text-3xl font-bold text-gray-500 hover:text-black cursor-pointer p-1 dark:text-gray-200 dark:hover:text-white">×</span>
@@ -167,6 +176,32 @@
         <!-- Table rows will be dynamically added here -->
         </tbody>
     </table>
+</div>
+<!-- Modal for adding new DoH servers -->
+<div id="dohModal" class="hidden fixed z-50 inset-0 flex items-center justify-center bg-black bg-opacity-60">
+    <div class="modal-content relative bg-white pt-4 pb-2 px-4 rounded-lg shadow-xl w-full sm:w-11/12 md:w-1/2 mx-auto my-2 sm:my-4 overflow-hidden dark:bg-gray-700 dark:text-white">
+        <span class="close absolute top-2 right-2 text-3xl font-bold text-gray-500 hover:text-black cursor-pointer p-1 dark:text-gray-200 dark:hover:text-white">×</span>
+        <h2 class="text-2xl sm:text-3xl mb-2 sm:mb-4 font-semibold dark:text-gray-200">Add Custom DoH Servers</h2>
+        <p class="mb-2 sm:mb-4 text-base sm:text-lg leading-relaxed dark:text-gray-300">
+            Enhance your DNS speed test by adding custom DNS-over-HTTPS (DoH) servers. Include popular DoH providers or
+            your preferred services to expand the range of tested DNS servers.
+        </p>
+        <!-- Scrollable List Container -->
+        <div class="overflow-auto max-h-[50vh] sm:max-h-[60vh]"> <!-- Adjust max height as needed -->
+            <ul id="dohList" class="list-none p-0">
+                <!-- Dynamic list items will be added here -->
+            </ul>
+        </div>
+        <div class="flex mt-2 sm:mt-4 justify-center">
+            <input type="url" id="newDoH"
+                   class="py-2 mr-2 px-4 w-3/4 border-2 border-gray-400 rounded focus:border-blue-500 focus:outline-none transition duration-200 ease-in-out placeholder-gray-600 dark:bg-gray-800 dark:border-gray-600 dark:placeholder-gray-400"
+                   placeholder="Add new DoH server in the Name, URL format...">
+            <button id="addDoH"
+                    class="py-2 px-6 bg-green-500 text-white rounded hover:bg-green-600 text-lg dark:bg-green-700 dark:hover:bg-green-900">
+                Add
+            </button>
+        </div>
+    </div>
 </div>
 <div id="chartContainer" class="hidden w-4/5 mx-auto mt-5 hidden">
     <canvas id="dnsChart" class="w-full h-96"></canvas>

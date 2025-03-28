@@ -211,14 +211,14 @@ async function performDNSTests() {
             const min = validResults[0];
             const max = validResults[validResults.length - 1];
             const median = validResults.length % 2 === 0 ? (validResults[validResults.length / 2 - 1] + validResults[validResults.length / 2]) / 2 : validResults[Math.floor(validResults.length / 2)];
-            
+
             let sum = 0;
             for (let i = 0; i < validResults.length; i++) {
                 sum += validResults[i];
             }
 
             const avg = sum / validResults.length;
-                        
+
 
             server.speed = {min, median, max, avg};
         } else {
@@ -556,4 +556,132 @@ document.addEventListener('DOMContentLoaded', function () {
     document.getElementById('resetZoom').addEventListener('click', function () {
         dnsChart.resetZoom();
     });
+
+    const dohModal = document.getElementById("dohModal");
+    const dohBtn = document.getElementById("editDoHButton");
+    const closeDohBtn = dohModal.querySelector(".close");
+    const addDoHBtn = document.getElementById("addDoH");
+    const newDoHInput = document.getElementById("newDoH");
+    const dohList = document.getElementById("dohList");
+
+    // Function to render the DoH servers list
+    function renderDoHList() {
+        dohList.innerHTML = '';
+        dnsServers.forEach((server, index) => {
+            const li = document.createElement("li");
+            li.className = 'px-2 py-1 mb-1 bg-gray-200 rounded flex justify-between items-center border-b border-gray-300 dark:bg-gray-700 dark:border-gray-600';
+
+            const serverText = document.createElement("span");
+            serverText.textContent = `${server.name}: ${server.url}`;
+            li.appendChild(serverText);
+
+            const removeBtn = document.createElement("button");
+            removeBtn.className = 'bg-red-500 text-white rounded px-2 py-1 ml-2 hover:bg-red-600 dark:bg-red-700 dark:hover:bg-red-800';
+            removeBtn.textContent = 'Delete';
+            removeBtn.onclick = function () {
+                dnsServers.splice(index, 1);
+                renderDoHList();
+            };
+
+            li.appendChild(removeBtn);
+            dohList.appendChild(li);
+        });
+    }
+
+    dohBtn.onclick = function () {
+        dohModal.style.display = "block";
+        renderDoHList();
+    };
+
+    closeDohBtn.onclick = function () {
+        dohModal.style.display = "none";
+    };
+
+    // Add new DoH server with automatic capability check
+    addDoHBtn.onclick = function () {
+        const serverDetails = newDoHInput.value.split(', '); // Expected format: "Name, URL"
+        if (serverDetails.length >= 2) {
+            const [name, url] = serverDetails;
+
+            // Check if server already exists by URL or name
+            const isDuplicate = dnsServers.some(server => server.url === url || server.name === name);
+            if (!isDuplicate) {
+                // If not duplicate, proceed to check and add the server
+                checkServerCapabilities(name, url);
+            } else {
+                alert("A server with the same name or URL already exists. Please enter a unique name and URL.");
+            }
+        } else {
+            alert("Please enter DoH server details in the correct format: Name, URL");
+        }
+        newDoHInput.value = ''; // Clear the input field
+    };
+
+    window.onclick = function (event) {
+        if (event.target === dohModal) {
+            dohModal.style.display = "none";
+        }
+    };
+
+    // Function to check server capabilities for CORS and method support
+    async function checkServerCapabilities(name, url) {
+        let supportsGet = false;
+        let supportsPost = false;
+        let corsGet = false;
+        let corsPost = false;
+
+        // Function to test a fetch operation for a given method
+        async function testMethod(method, mode) {
+            try {
+                const options = {
+                    method: method,
+                    mode: mode,
+                    headers: {}
+                };
+
+                // Additional headers for POST
+                if (method === 'POST') {
+                    options.headers['Content-Type'] = 'application/dns-message';
+                    options.body = new Uint8Array(); // Empty body for testing
+                }
+
+                const response = await fetch(url, options);
+                if (response.ok || mode === 'no-cors') {
+                    // If response is OK, check if CORS headers are present for 'cors' mode
+                    const corsEnabled = mode === 'cors' && response.headers.get('Access-Control-Allow-Origin') === '*';
+                    return {success: true, cors: corsEnabled};
+                }
+                return {success: false, cors: false};
+            } catch (error) {
+                console.error(`Error testing ${method} method with ${mode}:`, error);
+                return {success: false, cors: false};
+            }
+        }
+
+        // Test both GET and POST with 'cors' and 'no-cors'
+        const results = await Promise.all([
+            testMethod('GET', 'cors'),
+            testMethod('POST', 'cors'),
+            testMethod('GET', 'no-cors'),
+            testMethod('POST', 'no-cors')
+        ]);
+
+        // Update based on results
+        supportsGet = results[0].success || results[2].success;
+        supportsPost = results[1].success || results[3].success;
+        corsGet = results[0].cors;
+        corsPost = results[1].cors;
+
+        // Decide to add the server or not based on tests
+        if (supportsGet || supportsPost) {
+            const type = supportsGet ? 'get' : 'post';
+            const allowCors = supportsGet ? corsGet : corsPost;
+
+            dnsServers.push({name, url, type, allowCors, ips: []});
+            renderDoHList();
+            alert(`Server added successfully. GET support: ${supportsGet} (CORS: ${corsGet}), POST support: ${supportsPost} (CORS: ${corsPost})`);
+        } else {
+            alert('Failed to add server. Neither GET nor POST methods succeeded. Check console for details.');
+        }
+    }
 });
