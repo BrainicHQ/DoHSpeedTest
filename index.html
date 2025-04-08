@@ -203,7 +203,7 @@
         </div>
     </div>
 </div>
-<div id="chartContainer" class="hidden w-4/5 mx-auto mt-5 hidden">
+<div id="chartContainer" class="w-4/5 mx-auto mt-5 hidden">
     <canvas id="dnsChart" class="w-full h-96"></canvas>
     <button id="resetZoom"
             class="mt-3 bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600 dark:bg-blue-700 dark:hover:bg-blue-800">
@@ -213,45 +213,73 @@
 <div id="disclaimer"
      class="mt-10 px-5 py-4 bg-white border border-gray-300 rounded text-left max-w-7xl mx-auto leading-relaxed space-y-4 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200">
     <h2 class="text-2xl text-blue-500 mb-4 dark:text-blue-400">Disclaimer</h2>
-    <p>This <strong>DNS Speed Test tool</strong> operates client-side, directly testing DNS servers from your local
-        environment to ensure <strong>accurate real-world results</strong>. It supports <strong>DNS over HTTPS
-            (DoH)</strong>, enhancing privacy and security by encrypting DNS requests and responses.</p>
 
-    <p>Local network conditions like latency and bandwidth can influence <strong>DNS speed test results</strong>. Our
-        tool measures DNS resolution speed from your <strong>current location and network environment</strong>, offering
-        a personalized performance assessment.</p>
+    <p>
+        This <strong>DNS Speed Test tool</strong> runs entirely in your browser, sending live DNS-over-HTTPS (DoH)
+        queries from your local environment. No server-side code is involved, and no personal data is collected. By
+        measuring directly from your current network, the tool aims to provide <strong>accurate, real-world
+        results</strong>.
+    </p>
 
-    <p><strong>Warm-Up Phase:</strong> To ensure the most accurate results, our tool initiates a warm-up phase before
-        the actual DNS speed test. This phase prepares the DNS servers and stabilizes network conditions, which is
-        crucial for consistent and reliable measurements. Please note that this process adds a short additional delay to
-        the total test duration, contributing to the overall accuracy of the test results.</p>
+    <p>
+        <strong>Warm-Up Phase:</strong> Before timing each DNS server, the script primes connections and caches to
+        minimize the overhead of TCP/TLS handshakes. This warm-up step helps ensure consistent, ready-to-go conditions
+        when actual measurements begin. While it adds a small initial delay, it more fairly represents typical DoH
+        performance once connections are established.
+    </p>
 
-    <p><strong>Note on Result Accuracy:</strong> Factors such as browser processing and network variability can affect
-        test results, potentially causing discrepancies compared to other methods. For example, browser-based tests
-        might show different timings due to overheads like HTTP(S) request handling. We recommend conducting multiple
-        tests under various conditions for a more comprehensive evaluation.</p>
+    <p>
+        <strong>Time Measurement & Browser Overhead:</strong> We use the browser’s <code>fetch</code> and
+        <code>performance.now()</code> APIs to measure full DoH round-trip times. Because this includes HTTP/TLS
+        overhead, results may be higher than raw DNS queries performed by other tools. Depending on server capabilities,
+        our script may use <code>GET</code> or <code>POST</code>, CORS or <code>no-cors</code> mode. Some endpoints
+        require a preflight request, which can slightly affect timings.
+    </p>
 
-    <p>Our tool's strength lies in its <strong>comprehensive range of DNS servers</strong> and <strong>user-friendly
-        interface</strong>, suitable for both technical and non-technical users. While we strive for accuracy, the
-        results are indicative and should be used as a guide to help users choose the best DNS server options based on
-        relative performance in their specific conditions.</p>
+    <p>
+        <strong>Timeouts & Unavailable Results:</strong> Each query times out after 5 seconds. If a server does not
+        respond in that window, it appears as <em>Unavailable</em>. This ensures the test continues promptly even when
+        certain DNS endpoints are slow or unreachable.
+    </p>
+
+    <p>
+        <strong>Influence of Local Conditions:</strong> Network latency, bandwidth, and browser load can cause
+        variability. <strong>We recommend running multiple tests</strong> at different times or under different network
+        conditions to get a broader picture. The tool’s output is best used as a <strong>relative comparison</strong>
+        among DNS servers under your specific circumstances rather than an absolute global measure.
+    </p>
+
+    <p>
+        While <strong>we strive for accuracy</strong> by testing each DNS server with the same set of hostnames (and
+        reusing warm connections), results are still <strong>indicative</strong>. Use them as a guide when deciding
+        which DNS server offers the best performance for your location and environment.
+    </p>
 </div>
-<footer class="text-center py-3 mt-3 bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-400 relative">
+<footer class="text-center py-3 mt-3 bg-gray-100 text-gray-800 ...">
     <div class="container mx-auto px-4 py-5 text-center">
+        <div class="mb-4 text-md">
+            <p class="mb-2">Help keep this tool free & ad-free!</p>
+            <a href="https://www.buymeacoffee.com/silviu"
+                target="_blank"
+               class="inline-block bg-yellow-400 px-4 py-2 rounded text-black font-semibold">
+                🍕 Buy me a pizza
+            </a>
+            <p class="mt-2">or
+                <a href="https://brainic.io?utm_source=dnsspeedtest"
+                   target="_blank"
+                   class="text-blue-500 hover:underline dark:hover:text-blue-300">
+                    hire me
+                </a> for your next project.
+            </p>
+        </div>
         <p class="mb-4">© 2024 - 2025 - DNSSpeedTest.online. All Rights Reserved.</p>
         <div class="flex justify-center space-x-4">
-            <a rel="noopener noreferrer" class="github-button" href="https://github.com/BrainicHQ/DoHSpeedTest"
-               data-color-scheme="no-preference: light; light: light; dark: dark;" data-show-count="true"
-               aria-label="Star BrainicHQ/DoHSpeedTest on GitHub">Star</a>
-            <a href="https://www.buymeacoffee.com/silviu" target="_blank" rel="noopener noreferrer"
-               aria-label="Support me on Buy Me a Coffee"
-               class="text-blue-500 hover:underline dark:hover:text-blue-300">
-                ☕️ Support this project
-            </a>
-            <a href="https://brainic.io/?utm_source=dnsspeedtest" target="_blank" title="software company in romania"
-               aria-label="Software development services"
-               class="text-blue-500 hover:underline dark:hover:text-blue-300">
-                💻 Hire me for your next project
+            <a rel="noopener noreferrer"
+               class="github-button"
+               href="https://github.com/BrainicHQ/DoHSpeedTest"
+               data-show-count="true"
+               aria-label="Star BrainicHQ/DoHSpeedTest on GitHub">
+                Star
             </a>
         </div>
     </div>
