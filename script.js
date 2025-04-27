@@ -48,15 +48,15 @@ const dnsServers = [{
 }, {
     name: "DNSPod",
     url: "https://dns.pub/dns-query",
-    type: "get",
-    allowCors: true,
+    type: "post",
+    allowCors: false,
     ips: ["119.29.29.29", "182.254.116.116"]
 }, {
     name: "Google", url: "https://dns.google/resolve", type: "get", allowCors: true, ips: ["8.8.8.8", "8.8.4.4"]
 }, {
-    name: "Mullvad", url: "https://dns.mullvad.net/dns-query", ips: ["194.242.2.2", "194.242.2.2"]
+    name: "Mullvad", url: "https://dns.mullvad.net/dns-query", ips: ["194.242.2.2", "194.242.2.2"], type: "get", allowCors: false
 }, {
-    name: "Mullvad Base", url: "https://base.dns.mullvad.net/dns-query", ips: ["194.242.2.4", "194.242.2.4"]
+    name: "Mullvad Base", url: "https://base.dns.mullvad.net/dns-query", ips: ["194.242.2.4", "194.242.2.4"], type: "get", allowCors: false
 }, {
     name: "NextDNS", url: "https://dns.nextdns.io", type: "get", ips: ["45.90.28.0", "45.90.30.0"]
 }, {
@@ -78,7 +78,7 @@ const dnsServers = [{
 }, {
     name: "DNS for Family", url: "https://dns-doh.dnsforfamily.com/dns-query", ips: ["94.130.180.225", "78.47.64.161"]
 }, {
-    name: "Restena", url: "https://kaitain.restena.lu/dns-query", ips: ["158.64.1.29", "158.64.1.30"]
+    name: "Restena", url: "https://dnspub.restena.lu/dns-query", ips: ["158.64.1.29"]
 }, {
     name: "IIJ", url: "https://public.dns.iij.jp/dns-query", ips: ["203.180.164.45", "203.180.166.45"]
 }, {
