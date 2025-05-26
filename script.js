@@ -89,6 +89,11 @@ const dnsServers = [{
     name: "Foundation for Applied Privacy", url: "https://doh.applied-privacy.net/query", ips: ["146.255.56.98"],
 }, {
     name: "UncensoredDNS", url: "https://anycast.uncensoreddns.org/dns-query", ips: ["91.239.100.100", "89.233.43.71"]
+}, {
+    name: "RethinkDNS",
+    url: "https://sky.rethinkdns.com/dns-query",
+    ips: ["104.21.83.62", "172.67.214.246"],
+    allowCors: false,
 }];
 
 let dnsChart;
