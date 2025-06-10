@@ -94,6 +94,8 @@ const dnsServers = [{
     url: "https://sky.rethinkdns.com/dns-query",
     ips: ["104.21.83.62", "172.67.214.246"],
     allowCors: false,
+}, {
+    name: "DNSBunker", url: "https://dnsbunker.org/dns-query", ips: ["87.106.108.91", "87.106.32.13"]
 }];
 
 let dnsChart;
