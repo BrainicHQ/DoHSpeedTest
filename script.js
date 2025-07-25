@@ -217,7 +217,7 @@ function updateChart() {
                 y: {
                     title: {
                         display: window.innerWidth >= 768,
-                        text: 'DNS Servers (Fastest ↑)'
+                        text: 'DNS Servers (Slowest → Fastest)'
                     },
                     ticks: {
                         maxRotation: 0,
@@ -715,9 +715,6 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    document.getElementById('resetZoom').addEventListener('click', function () {
-        dnsChart.resetZoom();
-    });
 
     const dohModal = document.getElementById("dohModal");
     const dohBtn = document.getElementById("editDoHButton");
