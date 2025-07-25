@@ -104,67 +104,182 @@ const dnsServers = [{
 
 let dnsChart;
 
-function updateChartWithData(server) {
-    const chartContainer = document.getElementById('chartContainer');
-    const ctx = document.getElementById('dnsChart').getContext('2d');
+let chartData = [];
 
-    // Display the chart container if it's hidden and there's valid data
-    if (server.speed.min !== 'Unavailable' && window.innerWidth > 768) {
-        chartContainer.classList.remove('hidden');
+function updateChartWithData(server) {
+    // Store server data for chart updates
+    const existingIndex = chartData.findIndex(item => item.name === server.name);
+    const serverInfo = {
+        name: server.name,
+        avg: server.speed.avg !== 'Unavailable' ? server.speed.avg : null,
+        min: server.speed.min !== 'Unavailable' ? server.speed.min : null,
+        max: server.speed.max !== 'Unavailable' ? server.speed.max : null
+    };
+
+    if (existingIndex === -1) {
+        chartData.push(serverInfo);
+    } else {
+        chartData[existingIndex] = serverInfo;
     }
 
-    // Initialize the chart if it doesn't exist, with the new line chart structure
-    if (!dnsChart) {
-        dnsChart = new Chart(ctx, {
-            type: 'line', // Changed to 'line'
-            data: {
-                labels: topWebsites, // Assuming topWebsites is the array of websites
-                datasets: [] // Start with an empty array of datasets
-            }, options: {
-                responsive: true, scales: {
-                    y: {
-                        beginAtZero: true
-                    }
-                }, plugins: {
-                    zoom: {
-                        zoom: {
-                            wheel: {
-                                enabled: true, // Enable zooming with mouse wheel
-                            }, pinch: {
-                                enabled: true // Enable zooming with pinch gestures
-                            }, mode: 'xy', // Zoom both x and y axes
-                        }, pan: {
-                            enabled: true, mode: 'xy' // Pan both x and y axes
+    // Update chart when we have valid data
+    updateChart();
+}
+
+function updateChart() {
+    const chartContainer = document.getElementById('chartContainer');
+    const canvas = document.getElementById('dnsChart');
+    const ctx = canvas.getContext('2d');
+    
+    // Filter valid data and sort by average response time (ascending - fastest first)
+    const validData = chartData.filter(item => item.avg !== null).sort((a, b) => a.avg - b.avg);
+    
+    if (validData.length === 0) return;
+
+    // Calculate dynamic height based on number of servers (35px per server + padding)
+    const minHeight = 300;
+    const maxHeight = 800;
+    const heightPerServer = 35;
+    const dynamicHeight = Math.max(minHeight, Math.min(maxHeight, validData.length * heightPerServer + 100));
+    
+    // Update container height
+    const container = chartContainer.querySelector('.chart-container');
+    container.style.height = `${dynamicHeight}px`;
+
+    // Show chart container
+    chartContainer.classList.remove('hidden');
+
+    // Destroy existing chart if it exists
+    if (dnsChart) {
+        dnsChart.destroy();
+    }
+
+    // Calculate scale range to ensure all bars are visually meaningful
+    const minValue = Math.min(...validData.map(item => item.avg));
+    const maxValue = Math.max(...validData.map(item => item.avg));
+    const range = maxValue - minValue;
+    
+    // Use a more aggressive approach: start from 70% of minimum value
+    // This ensures the fastest server still gets at least 30% bar length
+    const scaleMin = Math.max(0, minValue * 0.7);
+
+    // Create horizontal bar chart
+    dnsChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: validData.map(item => item.name),
+            datasets: [{
+                label: 'Average Response Time (ms)',
+                data: validData.map(item => item.avg),
+                backgroundColor: validData.map(item => getPerformanceColor(item.avg, validData)),
+                borderColor: validData.map(item => getPerformanceColor(item.avg, validData, true)),
+                borderWidth: 1
+            }]
+        },
+        options: {
+            indexAxis: 'y', // Horizontal bars
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                intersect: false,
+                mode: 'index'
+            },
+            plugins: {
+                legend: {
+                    display: false // Hide legend for cleaner look
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const server = validData[context.dataIndex];
+                            return [
+                                `Average: ${server.avg.toFixed(2)}ms`,
+                                `Min: ${server.min?.toFixed(2) || 'N/A'}ms`,
+                                `Max: ${server.max?.toFixed(2) || 'N/A'}ms`
+                            ];
                         }
                     }
                 }
+            },
+            scales: {
+                x: {
+                    min: scaleMin,
+                    title: {
+                        display: true,
+                        text: 'Response Time (ms)'
+                    },
+                    ticks: {
+                        callback: function(value) {
+                            return value.toFixed(0) + 'ms';
+                        }
+                    }
+                },
+                y: {
+                    title: {
+                        display: window.innerWidth >= 768,
+                        text: 'DNS Servers (Fastest ↑)'
+                    },
+                    ticks: {
+                        maxRotation: 0,
+                        font: {
+                            size: 11
+                        }
+                    },
+                    categoryPercentage: 0.8,
+                    barPercentage: 0.6
+                }
+            },
+            elements: {
+                bar: {
+                    borderWidth: 1
+                }
+            },
+            layout: {
+                padding: {
+                    left: 20,
+                    right: 20,
+                    top: 15,
+                    bottom: 15
+                }
             }
-        });
-    }
-
-    // Find the dataset for the current server
-    const serverIndex = dnsChart.data.datasets.findIndex(dataset => dataset.label === server.name);
-
-    // Prepare the server data for the chart (speed results for each website)
-    const serverData = server.individualResults.map(result => result.speed === 'Unavailable' ? null : result.speed);
-
-    if (serverIndex === -1) {
-        // If the server is not in the chart, add it as a new dataset
-        const newDataset = {
-            label: server.name, data: serverData, fill: false, borderColor: getRandomColor(), // A function to generate a random color
-            borderWidth: 2, lineTension: 0.1 // Adjust for line smoothness
-        };
-        dnsChart.data.datasets.push(newDataset);
-    } else {
-        // If the server is already in the chart, update its data
-        dnsChart.data.datasets[serverIndex].data = serverData;
-    }
-
-    // Update the chart to reflect the new or updated data
-    dnsChart.update();
+        }
+    });
 }
 
-// Helper function to generate a random color for the chart lines
+// Performance-based color coding (green = fast, red = slow)
+function getPerformanceColor(responseTime, allData, border = false) {
+    if (!allData || allData.length === 0) return border ? '#22c55e' : '#22c55e80';
+    
+    const validTimes = allData.map(d => d.avg).filter(t => t !== null);
+    const minTime = Math.min(...validTimes);
+    const maxTime = Math.max(...validTimes);
+    
+    // Avoid division by zero
+    if (minTime === maxTime) return border ? '#22c55e' : '#22c55e80';
+    
+    // Normalize response time to 0-1 scale
+    const normalized = (responseTime - minTime) / (maxTime - minTime);
+    
+    // Color interpolation from green (fast) to red (slow)
+    let r, g, b;
+    if (normalized <= 0.5) {
+        // Green to yellow (0-0.5)
+        r = Math.round(255 * (normalized * 2));
+        g = 255;
+        b = 0;
+    } else {
+        // Yellow to red (0.5-1)
+        r = 255;
+        g = Math.round(255 * (2 - normalized * 2));
+        b = 0;
+    }
+    
+    // Return hex color with or without alpha
+    const alpha = border ? '' : '80';
+    return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}${alpha}`;
+}
+
+// Legacy function kept for compatibility
 function getRandomColor() {
     const letters = '0123456789ABCDEF';
     let color = '#';
@@ -196,6 +311,10 @@ checkButton.addEventListener('click', async function () {
     editButton.disabled = true; // Disable the Edit button
     document.getElementById('editDoHButton').disabled = true; // Disable the DoH Edit button
     document.getElementById('loadingMessage').classList.remove('hidden');
+    
+    // Clear previous chart data
+    chartData = [];
+    document.getElementById('chartContainer').classList.add('hidden');
 
     await updateLoadingMessage('Warming up DNS servers');
     await warmUpDNSServers();
@@ -492,10 +611,8 @@ window.addEventListener('resize', function () {
 });
 
 function updateChartVisibility() {
-    const chartContainer = document.getElementById('chartContainer');
-    if (window.innerWidth < 768) {
-        chartContainer.classList.add('hidden');
-    }
+    // Horizontal bar chart works well on mobile - no need to hide
+    // Chart is responsive and maintains good UX on all screen sizes
 }
 
 // JavaScript to handle modal and list manipulation
