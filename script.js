@@ -94,6 +94,12 @@ const dnsServers = [{
     url: "https://sky.rethinkdns.com/dns-query",
     ips: ["104.21.83.62", "172.67.214.246"],
     allowCors: false,
+}, {
+    name: "FlashStart (registration required)",
+    url: "https://doh.flashstart.com/f17c9ee5",
+    type: "post",
+    allowCors: false,
+    ips: ["185.236.104.104"]
 }];
 
 let dnsChart;
