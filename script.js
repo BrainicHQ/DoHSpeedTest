@@ -194,6 +194,7 @@ async function updateLoadingMessage(message) {
 checkButton.addEventListener('click', async function () {
     this.disabled = true;
     editButton.disabled = true; // Disable the Edit button
+    document.getElementById('editDoHButton').disabled = true; // Disable the DoH Edit button
     document.getElementById('loadingMessage').classList.remove('hidden');
 
     await updateLoadingMessage('Warming up DNS servers');
@@ -204,6 +205,7 @@ checkButton.addEventListener('click', async function () {
     document.getElementById('loadingMessage').classList.add('hidden');
     this.disabled = false;
     editButton.disabled = false; // Re-enable the Edit button
+    document.getElementById('editDoHButton').disabled = false; // Re-enable the DoH Edit button
 });
 
 async function performDNSTests() {
