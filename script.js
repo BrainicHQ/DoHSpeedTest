@@ -20,6 +20,8 @@
 const checkButton = document.getElementById('checkButton');
 const editButton = document.getElementById('editButton');
 const topWebsites = ['google.com', 'youtube.com', 'facebook.com', 'instagram.com', 'chatgpt.com', 'x.com', 'whatsapp.com', 'reddit.com', 'wikipedia.org', 'amazon.com', 'tiktok.com', 'pinterest.com'];
+// Penalize failed/timeout requests so they don't skew averages in favor of unstable servers
+const TIMEOUT_PENALTY_MS = 5000;
 // Global variable to store chart instance
 const dnsServers = [{
     name: "AdGuard", url: "https://dns.adguard-dns.com/dns-query", ips: ["94.140.14.14", "94.140.15.15"]
@@ -111,11 +113,12 @@ let chartData = [];
 function updateChartWithData(server) {
     // Store server data for chart updates
     const existingIndex = chartData.findIndex(item => item.name === server.name);
+    const hasReliableSamples = server.reliability ? server.reliability.successCount > 0 : server.speed.avg !== 'Unavailable';
     const serverInfo = {
         name: server.name,
-        avg: server.speed.avg !== 'Unavailable' ? server.speed.avg : null,
-        min: server.speed.min !== 'Unavailable' ? server.speed.min : null,
-        max: server.speed.max !== 'Unavailable' ? server.speed.max : null
+        avg: hasReliableSamples && typeof server.speed.avg === 'number' ? server.speed.avg : null,
+        min: hasReliableSamples && typeof server.speed.min === 'number' ? server.speed.min : null,
+        max: hasReliableSamples && typeof server.speed.max === 'number' ? server.speed.max : null
     };
 
     if (existingIndex === -1) {
@@ -331,6 +334,8 @@ checkButton.addEventListener('click', async function () {
 
 async function performDNSTests() {
 
+    const totalQueries = topWebsites.length;
+
     for (const server of dnsServers) {
         const speedResults = await Promise.all(topWebsites.map(website => measureDNSSpeed(server.url, website, server.type, server.allowCors)));
 
@@ -340,29 +345,76 @@ async function performDNSTests() {
             return {website, speed: speed !== null ? speed : 'Unavailable'};
         });
 
-        const validResults = speedResults.filter(speed => speed !== null && typeof speed === 'number');
-        validResults.sort((a, b) => a - b);
-
-        if (validResults.length > 0) {
-            const min = validResults[0];
-            const max = validResults[validResults.length - 1];
-            const median = validResults.length % 2 === 0 ? (validResults[validResults.length / 2 - 1] + validResults[validResults.length / 2]) / 2 : validResults[Math.floor(validResults.length / 2)];
-
-            let sum = 0;
-            for (let i = 0; i < validResults.length; i++) {
-                sum += validResults[i];
-            }
-
-            const avg = sum / validResults.length;
-
-
-            server.speed = {min, median, max, avg};
-        } else {
+        if (totalQueries === 0) {
             server.speed = {min: 'Unavailable', median: 'Unavailable', max: 'Unavailable', avg: 'Unavailable'};
+            server.reliability = {
+                status: 'no-data',
+                successCount: 0,
+                failureCount: 0,
+                totalQueries: 0,
+                message: 'No hostnames configured for testing.'
+            };
+            updateResult(server);
+            continue;
         }
+
+        const penalizedResults = speedResults.map(speed => typeof speed === 'number' ? speed : TIMEOUT_PENALTY_MS);
+        server.speed = calculateSpeedStats(penalizedResults);
+        server.reliability = buildReliabilityProfile(speedResults, totalQueries);
 
         updateResult(server);
     }
+}
+
+function calculateSpeedStats(results) {
+    if (!results.length) {
+        return {min: 'Unavailable', median: 'Unavailable', max: 'Unavailable', avg: 'Unavailable'};
+    }
+
+    const sorted = [...results].sort((a, b) => a - b);
+    const sum = sorted.reduce((acc, value) => acc + value, 0);
+    const avg = sum / sorted.length;
+    const min = sorted[0];
+    const max = sorted[sorted.length - 1];
+    const middleIndex = Math.floor(sorted.length / 2);
+    const median = sorted.length % 2 === 0 ? (sorted[middleIndex - 1] + sorted[middleIndex]) / 2 : sorted[middleIndex];
+
+    return {min, median, max, avg};
+}
+
+function buildReliabilityProfile(speedResults, totalQueries) {
+    if (totalQueries === 0) {
+        return {
+            status: 'no-data',
+            successCount: 0,
+            failureCount: 0,
+            totalQueries: 0,
+            message: 'No hostnames configured for testing.'
+        };
+    }
+
+    const successCount = speedResults.filter(speed => typeof speed === 'number').length;
+    const failureCount = totalQueries - successCount;
+
+    let status = 'healthy';
+    if (successCount === 0) {
+        status = 'failed';
+    } else if (failureCount > 0) {
+        status = 'partial';
+    }
+
+    let message;
+    if (status === 'healthy') {
+        message = 'All queries succeeded.';
+    } else if (status === 'partial') {
+        message = `${failureCount} of ${totalQueries} queries timed out or failed. Failed runs are scored as ${TIMEOUT_PENALTY_MS}ms penalties.`;
+    } else if (status === 'failed') {
+        message = `All queries failed. Each timeout counts as ${TIMEOUT_PENALTY_MS}ms to avoid skewed averages.`;
+    } else {
+        message = 'No hostnames configured for testing.';
+    }
+
+    return {status, successCount, failureCount, totalQueries, message};
 }
 
 async function measureDNSSpeed(dohUrl, hostname, serverType = 'post', allowCors = false) {
@@ -450,6 +502,12 @@ function updateResult(server) {
     const table = document.getElementById('resultsTable').getElementsByTagName('tbody')[0];
     let row = document.querySelector(`tr[data-server-name="${server.name}"]`);
     let detailsRow;
+    const reliabilityBadge = getReliabilityBadge(server.reliability);
+    const reliabilityDetails = server.reliability && server.reliability.message ? `<div class="mt-2 text-sm text-gray-600 dark:text-gray-400">${server.reliability.message}</div>` : '';
+    const minValue = formatMetric(server.speed.min);
+    const medianValue = formatMetric(server.speed.median);
+    const avgValue = formatMetric(server.speed.avg);
+    const maxValue = formatMetric(server.speed.max);
 
     if (!row) {
         row = document.createElement('tr');
@@ -467,23 +525,26 @@ function updateResult(server) {
     }
 
     // Update row with basic information
-    row.innerHTML = `
+        row.innerHTML = `
         <td class="text-left py-2 px-4 dark:text-gray-300">${server.name} 
         <span class="cursor-pointer ml-2 px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 border border-gray-300 dark:border-gray-600 rounded flex items-center gap-1 transition-all duration-200 hover:-translate-y-0.5 select-none inline-flex" onclick="copyToClipboard('DoH Server URL: ${server.url}' + '\\n' + 'IP Addresses: ${server.ips.join(', ')}', this)" title="Copy server details">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
             </svg>
             Copy
-        </span></td>
-        <td class="text-center py-2 px-4 dark:text-gray-300">${server.speed.min !== 'Unavailable' ? server.speed.min.toFixed(2) : 'Unavailable'}</td>
-        <td class="text-center py-2 px-4 dark:text-gray-300">${server.speed.median !== 'Unavailable' ? server.speed.median.toFixed(2) : 'Unavailable'}</td>
-        <td class="text-center py-2 px-4 dark:text-gray-300"> ${server.speed.avg !== 'Unavailable' ? server.speed.avg.toFixed(2) : 'Unavailable'}</td>
-        <td class="text-center py-2 px-4 dark:text-gray-300">${server.speed.max !== 'Unavailable' ? server.speed.max.toFixed(2) : 'Unavailable'}</td>
+        </span>
+        ${reliabilityBadge}
+        </td>
+        <td class="text-center py-2 px-4 dark:text-gray-300">${minValue}</td>
+        <td class="text-center py-2 px-4 dark:text-gray-300">${medianValue}</td>
+        <td class="text-center py-2 px-4 dark:text-gray-300">${avgValue}</td>
+        <td class="text-center py-2 px-4 dark:text-gray-300">${maxValue}</td>
     `;
 
     // Populate the detailed view with timings for each hostname
     detailsRow.innerHTML = `
-    <td colspan="4" class="py-2 px-4 dark:bg-gray-800 dark:text-gray-300">
+    <td colspan="5" class="py-2 px-4 dark:bg-gray-800 dark:text-gray-300">
+        ${reliabilityDetails}
         <div>Timings for each hostname:</div>
         <ul>
             ${server.individualResults.map(result => {
@@ -503,6 +564,47 @@ function updateResult(server) {
     // });
 
     updateChartWithData(server);
+}
+
+function formatMetric(value) {
+    return typeof value === 'number' ? value.toFixed(2) : 'Unavailable';
+}
+
+function getReliabilityBadge(reliability) {
+    if (!reliability) {
+        return '';
+    }
+
+    const escapedMessage = reliability.message ? reliability.message.replace(/"/g, '&quot;') : '';
+    const badgeConfig = {
+        healthy: {
+            label: 'Stable',
+            classes: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+        },
+        partial: {
+            label: 'Partial',
+            classes: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+        },
+        failed: {
+            label: 'Unreachable',
+            classes: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+        },
+        'no-data': {
+            label: 'No data',
+            classes: 'bg-gray-200 text-gray-700 dark:bg-gray-600 dark:text-gray-200'
+        }
+    };
+
+    const config = badgeConfig[reliability.status] || badgeConfig['no-data'];
+    const ratioText = reliability.totalQueries ? ` (${reliability.successCount}/${reliability.totalQueries})` : '';
+
+    return `
+        <div class="mt-1">
+            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${config.classes}" title="${escapedMessage}">
+                ${config.label}${ratioText}
+            </span>
+        </div>
+    `;
 }
 
 function sortTable(columnIndex) {
