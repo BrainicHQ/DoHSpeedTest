@@ -104,7 +104,14 @@ const dnsServers = [{
     type: "post",
     allowCors: false,
     ips: ["185.236.104.104"]
-}];
+}, {
+        name: "Comcast Xfinity",
+        url: "https://doh.xfinity.com/dns-query",
+        type: "get",
+        allowCors: false,
+        ips: ["75.75.75.75", "75.75.76.76"]
+    }
+];
 
 let dnsChart;
 
