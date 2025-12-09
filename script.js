@@ -62,10 +62,10 @@ const dnsServers = [{
 }, {
     name: "NextDNS", url: "https://dns.nextdns.io", type: "get", ips: ["45.90.28.0", "45.90.30.0"]
 }, {
-    name: "OpenBLD", url: "https://ada.openbld.net/dns-query", ips: ["146.112.41.2", "146.112.41.102"]
+    name: "OpenBLD", url: "https://ada.openbld.net/dns-query", ips: ["146.112.41.2", "146.112.41.102"], allowCors: false
 }, {
     name: "DNS4EU", url: "https://unfiltered.joindns4.eu/dns-query", ips: ["86.54.11.100", "86.54.11.200"],
-    type: "get",
+    type: "post",
     allowCors: false,
 }, {
     name: "Quad9", url: "https://dns.quad9.net/dns-query", ips: ["9.9.9.9", "149.112.112.112"]
@@ -429,36 +429,57 @@ async function measureDNSSpeed(dohUrl, hostname, serverType = 'post', allowCors 
     const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 seconds timeout
 
     try {
+        const dnsQuery = buildDNSQuery(hostname);
         const startTime = performance.now();
         let response;
 
         if (serverType === 'get') {
             const urlWithParam = new URL(dohUrl);
-            urlWithParam.searchParams.append('name', hostname);
-            urlWithParam.searchParams.append('nocache', Date.now());
+            const usesJsonApi = urlWithParam.pathname.includes('/resolve');
 
-            let fetchOptions = {
-                method: 'GET', signal: controller.signal
-            };
+            let fetchOptions = {method: 'GET', signal: controller.signal};
 
-            if (allowCors) {
-                fetchOptions.headers = {'Accept': 'application/dns-json'};
+            if (usesJsonApi) {
+                // JSON-style API (e.g., dns.google/resolve)
+                urlWithParam.searchParams.set('name', hostname);
+                urlWithParam.searchParams.set('type', 'A');
+                urlWithParam.searchParams.set('nocache', Date.now());
+                if (allowCors) {
+                    fetchOptions.mode = 'cors';
+                    fetchOptions.headers = {'Accept': 'application/dns-json'};
+                } else {
+                    fetchOptions.mode = 'no-cors';
+                }
             } else {
-                fetchOptions.mode = 'no-cors';
+                // RFC 8484 wire-format GET with base64url-encoded DNS message
+                urlWithParam.searchParams.set('dns', encodeDnsQueryBase64Url(dnsQuery));
+                fetchOptions.mode = allowCors ? 'cors' : 'no-cors';
+                if (allowCors) {
+                    fetchOptions.headers = {'Accept': 'application/dns-message'};
+                }
             }
 
             response = await fetch(urlWithParam, fetchOptions);
         } else {
-            const dnsQuery = buildDNSQuery(hostname);
-            let fetchOptions = {
-                method: 'POST', body: dnsQuery, mode: allowCors ? 'cors' : 'no-cors', signal: controller.signal
-            };
-
             if (allowCors) {
-                fetchOptions.headers = {'Content-Type': 'application/dns-message'};
+                const fetchOptions = {
+                    method: 'POST',
+                    body: dnsQuery,
+                    mode: 'cors',
+                    signal: controller.signal,
+                    headers: {
+                        'Content-Type': 'application/dns-message',
+                        'Accept': 'application/dns-message'
+                    }
+                };
+                response = await fetch(dohUrl, fetchOptions);
+            } else {
+                // Non-CORS endpoints: use GET with `dns` param to avoid missing Content-Type rejections
+                const urlWithParam = new URL(dohUrl);
+                urlWithParam.searchParams.set('dns', encodeDnsQueryBase64Url(dnsQuery));
+                const fetchOptions = {method: 'GET', mode: 'no-cors', signal: controller.signal};
+                response = await fetch(urlWithParam, fetchOptions);
             }
-
-            response = await fetch(dohUrl, fetchOptions);
         }
 
         clearTimeout(timeoutId);
@@ -481,28 +502,67 @@ async function measureDNSSpeed(dohUrl, hostname, serverType = 'post', allowCors 
 }
 
 function buildDNSQuery(hostname) {
-    // Start with a simple DNS header
-    // ID (2 bytes), Flags (2 bytes), QDCOUNT (2 bytes), ANCOUNT (2 bytes), NSCOUNT (2 bytes), ARCOUNT (2 bytes)
-    const header = new Uint8Array([0x00, 0x00, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
+    // Normalize hostname: drop trailing dot and let the URL parser punycode-encode IDNs
+    const normalizedHost = (() => {
+        const trimmed = hostname.trim().replace(/\.$/, '');
+        try {
+            return new URL(`http://${trimmed}`).hostname;
+        } catch (e) {
+            return trimmed;
+        }
+    })();
 
-    // Convert hostname to DNS question format
-    const labels = hostname.split('.');
-    const question = labels.flatMap(label => {
-        const length = label.length;
-        return [length, ...Array.from(label).map(c => c.charCodeAt(0))];
+    const labels = normalizedHost.split('.').filter(Boolean);
+    if (labels.length === 0) {
+        throw new Error('Invalid hostname for DNS query');
+    }
+
+    // Header: random TXID, RD flag set, QDCOUNT=1
+    const header = new Uint8Array(12);
+    if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+        crypto.getRandomValues(header.subarray(0, 2));
+    } else {
+        const txid = Math.floor(Math.random() * 0xffff);
+        header[0] = (txid >> 8) & 0xff;
+        header[1] = txid & 0xff;
+    }
+    header[2] = 0x01; // Flags: recursion desired (0x0100)
+    header[5] = 0x01; // QDCOUNT: one question
+
+    // Build QNAME (labels + terminating zero)
+    const qnameParts = [];
+    labels.forEach(label => {
+        const bytes = Array.from(label).map(char => {
+            const code = char.charCodeAt(0);
+            if (code > 0x7f) {
+                throw new Error('Hostname must be ASCII/punycode encoded');
+            }
+            return code;
+        });
+        if (bytes.length === 0 || bytes.length > 63) {
+            throw new Error('Invalid label length in hostname');
+        }
+        qnameParts.push(bytes.length, ...bytes);
     });
+    const qname = new Uint8Array(qnameParts.length + 1); // trailing zero byte already 0
+    qname.set(qnameParts);
 
-    // Type (A record = 0x0001) and Class (IN = 0x0001)
+    // Type (A) + Class (IN)
     const typeAndClass = new Uint8Array([0x00, 0x01, 0x00, 0x01]);
 
-    // Combine all parts
-    const query = new Uint8Array(header.length + question.length + 2 + typeAndClass.length);
-    query.set(header);
-    query.set(question, header.length);
-    query.set([0x00], header.length + question.length); // Null byte to end the QNAME
-    query.set(typeAndClass, header.length + question.length + 1);
+    // Assemble final query without extra padding bytes
+    const query = new Uint8Array(header.length + qname.length + typeAndClass.length);
+    let offset = 0;
+    query.set(header, offset); offset += header.length;
+    query.set(qname, offset); offset += qname.length;
+    query.set(typeAndClass, offset);
 
     return query;
+}
+
+function encodeDnsQueryBase64Url(query) {
+    const binary = Array.from(query, byte => String.fromCharCode(byte)).join('');
+    return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
 function updateResult(server) {
@@ -895,61 +955,96 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Function to check server capabilities for CORS and method support
     async function checkServerCapabilities(name, url) {
-        let supportsGet = false;
-        let supportsPost = false;
-        let corsGet = false;
-        let corsPost = false;
-
-        // Function to test a fetch operation for a given method
-        async function testMethod(method, mode) {
+        const testHostname = 'example.com';
+        const dnsQuery = buildDNSQuery(testHostname);
+        const usesJsonApi = (() => {
             try {
-                const options = {
-                    method: method,
-                    mode: mode,
-                    headers: {}
-                };
-
-                // Additional headers for POST
-                if (method === 'POST') {
-                    options.headers['Content-Type'] = 'application/dns-message';
-                    options.body = new Uint8Array(); // Empty body for testing
-                }
-
-                const response = await fetch(url, options);
-                if (response.ok || mode === 'no-cors') {
-                    // If response is OK, check if CORS headers are present for 'cors' mode
-                    const corsEnabled = mode === 'cors' && response.headers.get('Access-Control-Allow-Origin') === '*';
-                    return {success: true, cors: corsEnabled};
-                }
-                return {success: false, cors: false};
-            } catch (error) {
-                console.error(`Error testing ${method} method with ${mode}:`, error);
-                return {success: false, cors: false};
+                return new URL(url).pathname.includes('/resolve');
+            } catch (e) {
+                return false;
             }
-        }
+        })();
 
-        // Test both GET and POST with 'cors' and 'no-cors'
-        const results = await Promise.all([
-            testMethod('GET', 'cors'),
-            testMethod('POST', 'cors'),
-            testMethod('GET', 'no-cors'),
-            testMethod('POST', 'no-cors')
+        const wireGetUrl = (() => {
+            const u = new URL(url);
+            u.searchParams.set('dns', encodeDnsQueryBase64Url(dnsQuery));
+            return u;
+        })();
+
+        const jsonGetUrl = (() => {
+            const u = new URL(url);
+            u.searchParams.set('name', testHostname);
+            u.searchParams.set('type', 'A');
+            u.searchParams.set('nocache', Date.now());
+            return u;
+        })();
+
+        const withTimeout = async (input, options = {}) => {
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), 4000);
+            try {
+                return await fetch(input, {...options, signal: controller.signal});
+            } catch (error) {
+                console.error('Capability test error', {input, options, error});
+                return null;
+            } finally {
+                clearTimeout(timer);
+            }
+        };
+
+        const testGet = async (mode) => {
+            const urlToUse = usesJsonApi ? jsonGetUrl : wireGetUrl;
+            const headers = usesJsonApi ? {'Accept': 'application/dns-json'} : {'Accept': 'application/dns-message'};
+            const response = await withTimeout(urlToUse, {method: 'GET', mode, headers});
+            if (!response) return {success: false, cors: false};
+            if (mode === 'cors') {
+                const corsAllowed = response.type === 'cors';
+                return {success: response.ok, cors: corsAllowed};
+            }
+            // In no-cors mode we can't inspect status; assume success if no network error
+            return {success: true, cors: false};
+        };
+
+        const testPostCors = async () => {
+            // Only meaningful for wire-format endpoints
+            if (usesJsonApi) return {success: false, cors: false};
+            const response = await withTimeout(url, {
+                method: 'POST',
+                mode: 'cors',
+                headers: {
+                    'Content-Type': 'application/dns-message',
+                    'Accept': 'application/dns-message'
+                },
+                body: dnsQuery
+            });
+            if (!response) return {success: false, cors: false};
+            return {success: response.ok, cors: response.type === 'cors'};
+        };
+
+        const [getCors, postCors, getNoCors] = await Promise.all([
+            testGet('cors'),
+            testPostCors(),
+            testGet('no-cors')
         ]);
 
-        // Update based on results
-        supportsGet = results[0].success || results[2].success;
-        supportsPost = results[1].success || results[3].success;
-        corsGet = results[0].cors;
-        corsPost = results[1].cors;
+        let chosenType = null;
+        let allowCors = false;
 
-        // Decide to add the server or not based on tests
-        if (supportsGet || supportsPost) {
-            const type = supportsGet ? 'get' : 'post';
-            const allowCors = supportsGet ? corsGet : corsPost;
+        if (getCors.success) {
+            chosenType = 'get';
+            allowCors = true;
+        } else if (postCors.success) {
+            chosenType = 'post';
+            allowCors = true;
+        } else if (getNoCors.success) {
+            chosenType = 'get';
+            allowCors = false;
+        }
 
-            dnsServers.push({name, url, type, allowCors, ips: []});
+        if (chosenType) {
+            dnsServers.push({name, url, type: chosenType, allowCors, ips: []});
             renderDoHList();
-            alert(`Server added successfully. GET support: ${supportsGet} (CORS: ${corsGet}), POST support: ${supportsPost} (CORS: ${corsPost})`);
+            alert(`Server added. GET: ${getCors.success || getNoCors.success} (CORS: ${getCors.cors}), POST: ${postCors.success} (CORS: ${postCors.cors}). Using ${chosenType.toUpperCase()} with${allowCors ? '' : 'out'} CORS.`);
         } else {
             alert('Failed to add server. Neither GET nor POST methods succeeded. Check console for details.');
         }
