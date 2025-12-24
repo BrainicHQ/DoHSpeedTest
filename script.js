@@ -54,6 +54,8 @@ const dnsServers = [{
     allowCors: false,
     ips: ["119.29.29.29", "182.254.116.116"]
 }, {
+    name: "FixCraft", url: "https://.fixcraft.jp:2442/dns-query", ips: ["204.12.233.121"] //supports DoT as well
+}, {
     name: "Google", url: "https://dns.google/resolve", type: "get", allowCors: true, ips: ["8.8.8.8", "8.8.4.4"]
 }, {
     name: "Mullvad", url: "https://dns.mullvad.net/dns-query", ips: ["194.242.2.2", "194.242.2.2"], type: "get", allowCors: false
