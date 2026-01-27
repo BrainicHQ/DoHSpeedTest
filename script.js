@@ -944,7 +944,7 @@ document.addEventListener('DOMContentLoaded', function () {
             let parsedUrl;
             try {
                 parsedUrl = new URL(url);
-            } catch (e) {
+            } catch (_) {
                 alert("Invalid URL format. Please enter a valid URL (e.g., https://example.com/dns-query).");
                 return;
             }
