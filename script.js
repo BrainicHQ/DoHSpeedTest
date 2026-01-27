@@ -931,7 +931,29 @@ document.addEventListener('DOMContentLoaded', function () {
     addDoHBtn.onclick = function () {
         const serverDetails = newDoHInput.value.split(', '); // Expected format: "Name, URL"
         if (serverDetails.length >= 2) {
-            const [name, url] = serverDetails;
+            const name = serverDetails[0].trim();
+            const url = serverDetails.slice(1).join(', ').trim(); // Handle URLs with commas
+
+            // Validate the name
+            if (!name) {
+                alert("Server name cannot be empty.");
+                return;
+            }
+
+            // Validate the URL format and protocol
+            let parsedUrl;
+            try {
+                parsedUrl = new URL(url);
+            } catch (e) {
+                alert("Invalid URL format. Please enter a valid URL (e.g., https://example.com/dns-query).");
+                return;
+            }
+
+            // Check if URL uses HTTPS protocol (required for DoH)
+            if (parsedUrl.protocol !== 'https:') {
+                alert("DoH URLs must use HTTPS protocol. Please enter a URL starting with 'https://'.");
+                return;
+            }
 
             // Check if server already exists by URL or name
             const isDuplicate = dnsServers.some(server => server.url === url || server.name === name);
