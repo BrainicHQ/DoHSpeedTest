@@ -19,11 +19,25 @@
  */
 const checkButton = document.getElementById('checkButton');
 const editButton = document.getElementById('editButton');
-const topWebsites = ['google.com', 'youtube.com', 'facebook.com', 'instagram.com', 'chatgpt.com', 'x.com', 'whatsapp.com', 'reddit.com', 'wikipedia.org', 'amazon.com', 'tiktok.com', 'pinterest.com'];
+const hostFeedback = document.getElementById('websiteFeedback');
+const hostCountBadge = document.getElementById('hostCountBadge');
+const resetHostnamesButton = document.getElementById('resetHostnames');
+const dohFeedback = document.getElementById('dohFeedback');
+const dohCountBadge = document.getElementById('dohCountBadge');
+const resetDoHButton = document.getElementById('resetDoHButton');
+const newDoHNameInput = document.getElementById('newDoHName');
+const newDoHUrlInput = document.getElementById('newDoHUrl');
+const newDoHIpsInput = document.getElementById('newDoHIps');
+const DEFAULT_TOP_WEBSITES = ['google.com', 'youtube.com', 'facebook.com', 'instagram.com', 'chatgpt.com', 'x.com', 'whatsapp.com', 'reddit.com', 'wikipedia.org', 'amazon.com', 'tiktok.com', 'pinterest.com'];
+const STORAGE_KEYS = {
+    hostnames: 'dohSpeedTest.hostnames',
+    servers: 'dohSpeedTest.dnsServers'
+};
+let topWebsites = loadStoredHostnames();
 // Penalize failed/timeout requests so they don't skew averages in favor of unstable servers
 const TIMEOUT_PENALTY_MS = 5000;
 // Global variable to store chart instance
-const dnsServers = [{
+const DEFAULT_DNS_SERVERS = [{
     name: "AdGuard", url: "https://dns.adguard-dns.com/dns-query", ips: ["94.140.14.14", "94.140.15.15"]
 }, {
     name: "AliDNS", url: "https://dns.alidns.com/dns-query", ips: ["223.5.5.5", "223.6.6.6"]
@@ -113,6 +127,135 @@ const dnsServers = [{
     }
 ];
 
+let dnsServers = loadStoredDnsServers();
+const modalFeedbackElements = {
+    hosts: hostFeedback,
+    doh: dohFeedback
+};
+const MODAL_FEEDBACK_BASE = 'mt-2 text-sm';
+const MODAL_FEEDBACK_STYLES = {
+    info: 'text-slate-500 dark:text-slate-400',
+    success: 'text-emerald-600 dark:text-emerald-300',
+    error: 'text-red-600 dark:text-red-300'
+};
+
+function syncRunButtonState() {
+    checkButton.disabled = topWebsites.length === 0 || dnsServers.length === 0;
+}
+syncRunButtonState();
+updateHostStats();
+updateDoHStats();
+clearModalFeedback('hosts');
+clearModalFeedback('doh');
+
+function loadStoredHostnames() {
+    try {
+        const stored = localStorage.getItem(STORAGE_KEYS.hostnames);
+        if (stored) {
+            const parsed = JSON.parse(stored);
+            if (Array.isArray(parsed) && parsed.every(item => typeof item === 'string')) {
+                return parsed;
+            }
+        }
+    } catch (error) {
+        console.warn('Unable to load stored hostnames, falling back to defaults.', error);
+    }
+    return [...DEFAULT_TOP_WEBSITES];
+}
+
+function loadStoredDnsServers() {
+    try {
+        const stored = localStorage.getItem(STORAGE_KEYS.servers);
+        if (stored) {
+            const parsed = JSON.parse(stored);
+            if (Array.isArray(parsed)) {
+                return parsed.map(cloneServer);
+            }
+        }
+    } catch (error) {
+        console.warn('Unable to load stored DoH servers, falling back to defaults.', error);
+    }
+    return DEFAULT_DNS_SERVERS.map(cloneServer);
+}
+
+function persistHostnames() {
+    try {
+        localStorage.setItem(STORAGE_KEYS.hostnames, JSON.stringify(topWebsites));
+    } catch (error) {
+        console.warn('Unable to persist hostnames', error);
+    }
+}
+
+function persistDnsServers() {
+    try {
+        localStorage.setItem(STORAGE_KEYS.servers, JSON.stringify(dnsServers));
+    } catch (error) {
+        console.warn('Unable to persist DoH servers', error);
+    }
+}
+
+function cloneServer(server) {
+    return {
+        ...server,
+        ips: Array.isArray(server.ips) ? [...server.ips] : []
+    };
+}
+
+function showModalFeedback(target, type, message) {
+    const element = modalFeedbackElements[target];
+    if (!element) return;
+    const feedbackType = MODAL_FEEDBACK_STYLES[type] || MODAL_FEEDBACK_STYLES.info;
+    element.className = `${MODAL_FEEDBACK_BASE} ${feedbackType}`;
+    element.textContent = message;
+    element.classList.remove('hidden');
+}
+
+function clearModalFeedback(target) {
+    const element = modalFeedbackElements[target];
+    if (!element) return;
+    element.textContent = '';
+    element.className = `${MODAL_FEEDBACK_BASE} ${MODAL_FEEDBACK_STYLES.info} hidden`;
+}
+
+function updateHostStats() {
+    if (hostCountBadge) {
+        const count = topWebsites.length;
+        const label = count === 1 ? 'hostname' : 'hostnames';
+        hostCountBadge.textContent = `${count} ${label} configured`;
+    }
+}
+
+function updateDoHStats() {
+    if (dohCountBadge) {
+        const count = dnsServers.length;
+        const label = count === 1 ? 'DoH server' : 'DoH servers';
+        dohCountBadge.textContent = `${count} ${label} configured`;
+    }
+}
+
+function resetHostnamesToDefault() {
+    topWebsites = [...DEFAULT_TOP_WEBSITES];
+    persistHostnames();
+    updateHostStats();
+    showModalFeedback('hosts', 'success', 'Restored recommended hostnames.');
+}
+
+function resetDnsServersToDefault() {
+    dnsServers = DEFAULT_DNS_SERVERS.map(cloneServer);
+    persistDnsServers();
+    updateDoHStats();
+    syncRunButtonState();
+    showModalFeedback('doh', 'success', 'Restored curated DoH server list.');
+}
+
+function parseIpList(rawValue) {
+    if (!rawValue) return [];
+    return rawValue
+        .split(/[\n,;]/)
+        .map(entry => entry.trim())
+        .filter(Boolean);
+}
+
 let dnsChart;
 
 let chartData = [];
@@ -155,7 +298,7 @@ function updateChart() {
     const dynamicHeight = Math.max(minHeight, Math.min(maxHeight, validData.length * heightPerServer + 100));
     
     // Update container height
-    const container = chartContainer.querySelector('.chart-container');
+    const container = chartContainer.querySelector('.chart-container') || chartContainer;
     container.style.height = `${dynamicHeight}px`;
 
     // Show chart container
@@ -342,8 +485,16 @@ checkButton.addEventListener('click', async function () {
 async function performDNSTests() {
 
     const totalQueries = topWebsites.length;
+    const totalServers = dnsServers.length;
 
-    for (const server of dnsServers) {
+    if (totalServers === 0) {
+        await updateLoadingMessage('No DoH servers configured. Add at least one server to run the benchmark.');
+        return;
+    }
+
+    for (let index = 0; index < totalServers; index++) {
+        const server = dnsServers[index];
+        await updateLoadingMessage(`Analyzing DNS servers (${index + 1}/${totalServers}): ${server.name}`);
         const speedResults = await Promise.all(topWebsites.map(website => measureDNSSpeed(server.url, website, server.type, server.allowCors)));
 
         // Map each website to its speed result for the current server
@@ -592,21 +743,25 @@ function updateResult(server) {
     }
 
     // Update row with basic information
-        row.innerHTML = `
-        <td class="text-left py-2 px-4 dark:text-gray-300">${server.name} 
-        <span class="cursor-pointer ml-2 px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 border border-gray-300 dark:border-gray-600 rounded flex items-center gap-1 transition-all duration-200 hover:-translate-y-0.5 select-none inline-flex" onclick="copyToClipboard('DoH Server URL: ${server.url}' + '\\n' + 'IP Addresses: ${server.ips.join(', ')}', this)" title="Copy server details">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
-            </svg>
-            Copy
-        </span>
-        ${reliabilityBadge}
-        </td>
-        <td class="text-center py-2 px-4 dark:text-gray-300">${minValue}</td>
-        <td class="text-center py-2 px-4 dark:text-gray-300">${medianValue}</td>
-        <td class="text-center py-2 px-4 dark:text-gray-300">${avgValue}</td>
-        <td class="text-center py-2 px-4 dark:text-gray-300">${maxValue}</td>
-    `;
+    row.innerHTML = '';
+
+    const serverCell = document.createElement('td');
+    serverCell.className = 'text-left py-2 px-4 dark:text-gray-300 flex flex-col gap-1';
+    const serverName = document.createElement('span');
+    serverName.textContent = server.name;
+    serverCell.appendChild(serverName);
+    const copyButton = createCopyButton(server);
+    serverCell.appendChild(copyButton);
+    serverCell.insertAdjacentHTML('beforeend', reliabilityBadge);
+    row.appendChild(serverCell);
+
+    const metricValues = [minValue, medianValue, avgValue, maxValue];
+    metricValues.forEach(value => {
+        const cell = document.createElement('td');
+        cell.className = 'text-center py-2 px-4 dark:text-gray-300';
+        cell.textContent = value;
+        row.appendChild(cell);
+    });
 
     // Populate the detailed view with timings for each hostname
     detailsRow.innerHTML = `
@@ -717,11 +872,31 @@ function sortTable(columnIndex) {
     }
 }
 
+function createCopyButton(server) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = "cursor-pointer ml-0 mt-1 px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 border border-gray-300 dark:border-gray-600 rounded flex items-center gap-1 transition-all duration-200 hover:-translate-y-0.5 select-none inline-flex w-max";
+    button.innerHTML = `
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1-.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
+        </svg>
+        Copy
+    `;
+    const ipList = Array.isArray(server.ips) && server.ips.length ? server.ips.join(', ') : 'Not provided';
+    const copyText = `DoH Server URL: ${server.url}\nIP Addresses: ${ipList}`;
+    button.dataset.copyText = copyText;
+    button.title = "Copy server details";
+    button.addEventListener('click', (event) => {
+        event.stopPropagation();
+        copyToClipboard(button.dataset.copyText, button);
+    });
+    return button;
+}
+
 function copyToClipboard(text, buttonElement) {
-    event.stopPropagation();
     navigator.clipboard.writeText(text).then(() => {
         // Change button state to indicate success
-        buttonElement.className = "cursor-pointer ml-2 px-2 py-1 text-xs bg-green-100 hover:bg-green-200 dark:bg-green-900 dark:hover:bg-green-800 border border-green-400 text-green-700 dark:text-green-300 rounded flex items-center gap-1 transition-all duration-200 select-none inline-flex";
+        buttonElement.className = "cursor-pointer ml-0 mt-1 px-2 py-1 text-xs bg-green-100 hover:bg-green-200 dark:bg-green-900 dark:hover:bg-green-800 border border-green-400 text-green-700 dark:text-green-300 rounded flex items-center gap-1 transition-all duration-200 select-none inline-flex w-max";
         buttonElement.innerHTML = `
             <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
@@ -731,7 +906,7 @@ function copyToClipboard(text, buttonElement) {
 
         // Revert button state after 2 seconds
         setTimeout(() => {
-            buttonElement.className = "cursor-pointer ml-2 px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 border border-gray-300 dark:border-gray-600 rounded flex items-center gap-1 transition-all duration-200 hover:-translate-y-0.5 select-none inline-flex";
+            buttonElement.className = "cursor-pointer ml-0 mt-1 px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 border border-gray-300 dark:border-gray-600 rounded flex items-center gap-1 transition-all duration-200 hover:-translate-y-0.5 select-none inline-flex w-max";
             buttonElement.innerHTML = `
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
@@ -742,7 +917,7 @@ function copyToClipboard(text, buttonElement) {
     }).catch(err => {
         console.error('Error in copying text: ', err);
         // Show error state
-        buttonElement.className = "cursor-pointer ml-2 px-2 py-1 text-xs bg-red-100 hover:bg-red-200 dark:bg-red-900 dark:hover:bg-red-800 border border-red-400 text-red-700 dark:text-red-300 rounded flex items-center gap-1 transition-all duration-200 select-none inline-flex";
+        buttonElement.className = "cursor-pointer ml-0 mt-1 px-2 py-1 text-xs bg-red-100 hover:bg-red-200 dark:bg-red-900 dark:hover:bg-red-800 border border-red-400 text-red-700 dark:text-red-300 rounded flex items-center gap-1 transition-all duration-200 select-none inline-flex w-max";
         buttonElement.innerHTML = `
             <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
@@ -750,7 +925,7 @@ function copyToClipboard(text, buttonElement) {
             Error
         `;
         setTimeout(() => {
-            buttonElement.className = "cursor-pointer ml-2 px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 border border-gray-300 dark:border-gray-600 rounded flex items-center gap-1 transition-all duration-200 hover:-translate-y-0.5 select-none inline-flex";
+            buttonElement.className = "cursor-pointer ml-0 mt-1 px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 border border-gray-300 dark:border-gray-600 rounded flex items-center gap-1 transition-all duration-200 hover:-translate-y-0.5 select-none inline-flex w-max";
             buttonElement.innerHTML = `
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
@@ -789,6 +964,14 @@ function updateChartVisibility() {
 // JavaScript to handle modal and list manipulation
 document.addEventListener('DOMContentLoaded', function () {
     updateChartVisibility();
+    const showModal = (element) => {
+        element.classList.remove('hidden');
+        element.removeAttribute('aria-hidden');
+    };
+    const hideModal = (element) => {
+        element.classList.add('hidden');
+        element.setAttribute('aria-hidden', 'true');
+    };
     document.getElementById('resultsTable').addEventListener('click', function (event) {
         let row = event.target.closest('tr');
         if (row && !row.classList.contains('details-row')) {
@@ -801,7 +984,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const modal = document.getElementById("websiteModal");
     const btn = document.getElementById("editButton"); // Button that opens the modal
-    const span = document.getElementsByClassName("close")[0];
+    const hostModalCloseButton = modal.querySelector(".close");
     const addBtn = document.getElementById("addHostname");
     const input = document.getElementById("newWebsite");
     const list = document.getElementById("websiteList");
@@ -809,35 +992,44 @@ document.addEventListener('DOMContentLoaded', function () {
     // Function to render the list
     function renderList() {
         list.innerHTML = '';
-        topWebsites.forEach((site, index) => {
-            const li = document.createElement("li");
-            // Updated class list to include border-bottom for better separation
-            li.className = 'px-2 py-1 mb-1 bg-gray-200 rounded flex justify-between items-center border-b border-gray-300 dark:bg-gray-700 dark:border-gray-600';
+        if (topWebsites.length === 0) {
+            const emptyState = document.createElement("li");
+            emptyState.className = 'px-2 py-3 text-sm text-slate-500 dark:text-slate-300';
+            emptyState.textContent = 'No hostnames configured. Use the form below to add some.';
+            list.appendChild(emptyState);
+        } else {
+            topWebsites.forEach((site, index) => {
+                const li = document.createElement("li");
+                li.className = 'px-2 py-2 mb-1 bg-gray-200 rounded flex justify-between items-center border-b border-gray-300 dark:bg-gray-700 dark:border-gray-600';
 
-            const siteText = document.createElement("span");
-            siteText.textContent = site;
-            li.appendChild(siteText);  // Properly append the text content to the list item
+                const siteText = document.createElement("span");
+                siteText.textContent = site;
+                li.appendChild(siteText);
 
-            const removeBtn = document.createElement("button");
-            removeBtn.className = 'bg-red-500 text-white rounded px-2 py-1 hover:bg-red-600 dark:bg-red-700 dark:hover:bg-red-800';
-            removeBtn.textContent = 'Delete';
-            removeBtn.onclick = function () {
-                topWebsites.splice(index, 1);
-                renderList();
-            };
+                const removeBtn = document.createElement("button");
+                removeBtn.className = 'bg-red-500 text-white rounded px-2 py-1 hover:bg-red-600 dark:bg-red-700 dark:hover:bg-red-800';
+                removeBtn.textContent = 'Delete';
+                removeBtn.onclick = function () {
+                    const removed = topWebsites.splice(index, 1);
+                    persistHostnames();
+                    renderList();
+                    showModalFeedback('hosts', 'info', `${removed[0]} removed from the test list.`);
+                };
 
-            li.appendChild(removeBtn);
-            list.appendChild(li);
-        });
-        // Disable the checkButton if topWebsites is empty
-        checkButton.disabled = topWebsites.length === 0;
+                li.appendChild(removeBtn);
+                list.appendChild(li);
+            });
+        }
+        updateHostStats();
+        // Disable the checkButton if we have no hostnames or DoH servers
+        syncRunButtonState();
     }
 
     // Open the modal
     btn.onclick = function () {
-        modal.style.display = "block";
+        showModal(modal);
         renderList();
-    }
+    };
 
     function validateAndExtractHost(input) {
         try {
@@ -858,103 +1050,235 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    // Close the modal
-    span.onclick = function () {
-        modal.style.display = "none";
+    if (hostModalCloseButton) {
+        hostModalCloseButton.onclick = function () {
+            hideModal(modal);
+            clearModalFeedback('hosts');
+        };
     }
 
-    // Add new website
-    addBtn.onclick = function () {
-        const host = validateAndExtractHost(input.value);
-        if (host) {
-            if (!topWebsites.includes(host)) {
-                topWebsites.push(host);
-                renderList();
-            } else {
-                alert("This website is already in the list.");
-            }
-        } else {
-            alert("Please enter a valid URL or hostname.");
-        }
-        input.value = ''; // Clear the input field
+    if (resetHostnamesButton) {
+        resetHostnamesButton.addEventListener('click', () => {
+            resetHostnamesToDefault();
+            renderList();
+        });
     }
+
+    if (input) {
+        input.addEventListener('input', () => clearModalFeedback('hosts'));
+    }
+
+    // Add new website(s)
+    addBtn.onclick = function () {
+        const candidate = input.value.trim();
+        if (!candidate) {
+            showModalFeedback('hosts', 'error', 'Please enter at least one hostname or URL.');
+            return;
+        }
+        const entries = candidate.split(/[\n,;]/).map(entry => entry.trim()).filter(Boolean);
+        if (!entries.length) {
+            showModalFeedback('hosts', 'error', 'Please enter at least one hostname or URL.');
+            return;
+        }
+
+        const added = [];
+        const duplicates = [];
+        const invalid = [];
+
+        entries.forEach(entry => {
+            const host = validateAndExtractHost(entry);
+            if (!host) {
+                invalid.push(entry);
+                return;
+            }
+            if (topWebsites.includes(host)) {
+                duplicates.push(host);
+                return;
+            }
+            topWebsites.push(host);
+            added.push(host);
+        });
+
+        if (added.length) {
+            persistHostnames();
+            renderList();
+        } else {
+            updateHostStats();
+        }
+
+        input.value = '';
+
+        const messageParts = [];
+        let severity = 'info';
+        if (added.length) {
+            severity = 'success';
+            messageParts.push(`${added.length} ${added.length === 1 ? 'hostname' : 'hostnames'} added.`);
+        }
+        if (duplicates.length) {
+            messageParts.push(`${duplicates.length} duplicate ${duplicates.length === 1 ? 'entry was' : 'entries were'} skipped.`);
+        }
+        if (invalid.length) {
+            if (!added.length) {
+                severity = 'error';
+            }
+            messageParts.push(`${invalid.length} invalid ${invalid.length === 1 ? 'entry' : 'entries'} ignored.`);
+        }
+        if (!messageParts.length) {
+            severity = 'error';
+            messageParts.push('No valid hostnames detected. Please double-check your entries.');
+        }
+        showModalFeedback('hosts', severity, messageParts.join(' '));
+    };
 
     // Close the modal when clicking outside of it
-    window.onclick = function (event) {
-        if (event.target === modal) {
-            modal.style.display = "none";
-        }
-    }
 
 
     const dohModal = document.getElementById("dohModal");
     const dohBtn = document.getElementById("editDoHButton");
     const closeDohBtn = dohModal.querySelector(".close");
     const addDoHBtn = document.getElementById("addDoH");
-    const newDoHInput = document.getElementById("newDoH");
     const dohList = document.getElementById("dohList");
 
     // Function to render the DoH servers list
     function renderDoHList() {
         dohList.innerHTML = '';
-        dnsServers.forEach((server, index) => {
-            const li = document.createElement("li");
-            li.className = 'px-2 py-1 mb-1 bg-gray-200 rounded flex justify-between items-center border-b border-gray-300 dark:bg-gray-700 dark:border-gray-600';
+        if (dnsServers.length === 0) {
+            const emptyState = document.createElement("li");
+            emptyState.className = 'px-2 py-3 text-sm text-slate-500 dark:text-slate-300';
+            emptyState.textContent = 'No DoH servers configured yet.';
+            dohList.appendChild(emptyState);
+        } else {
+            dnsServers.forEach((server, index) => {
+                const li = document.createElement("li");
+                li.className = 'px-3 py-2 mb-1 bg-gray-200 rounded border-b border-gray-300 dark:bg-gray-700 dark:border-gray-600 flex flex-col gap-2';
 
-            const serverText = document.createElement("span");
-            serverText.textContent = `${server.name}: ${server.url}`;
-            li.appendChild(serverText);
+                const serverText = document.createElement("div");
+                serverText.className = 'flex flex-col gap-0.5';
+                const methodLabel = (server.type || 'auto').toUpperCase();
+                const corsLabel = server.allowCors ? 'CORS allowed' : 'No CORS';
+                const ipPreview = server.ips && server.ips.length ? server.ips.slice(0, 3).join(', ') + (server.ips.length > 3 ? '…' : '') : null;
+                serverText.innerHTML = `
+                    <span class="font-semibold text-sm">${server.name}</span>
+                    <span class="text-xs text-slate-600 dark:text-slate-300 break-all">${server.url}</span>
+                    <div class="mt-1 flex flex-wrap gap-2 text-[11px]">
+                        <span class="rounded-full border border-slate-300 dark:border-slate-600 px-2 py-0.5 text-slate-700 dark:text-slate-200">${methodLabel}</span>
+                        <span class="rounded-full px-2 py-0.5 ${server.allowCors ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'}">${corsLabel}</span>
+                        ${ipPreview ? `<span class="rounded-full border border-slate-300 dark:border-slate-600 px-2 py-0.5 text-slate-600 dark:text-slate-200">${ipPreview}</span>` : ''}
+                    </div>
+                `;
+                li.appendChild(serverText);
 
-            const removeBtn = document.createElement("button");
-            removeBtn.className = 'bg-red-500 text-white rounded px-2 py-1 ml-2 hover:bg-red-600 dark:bg-red-700 dark:hover:bg-red-800';
-            removeBtn.textContent = 'Delete';
-            removeBtn.onclick = function () {
-                dnsServers.splice(index, 1);
-                renderDoHList();
-            };
+                const actionsRow = document.createElement("div");
+                actionsRow.className = 'flex justify-end';
 
-            li.appendChild(removeBtn);
-            dohList.appendChild(li);
-        });
+                const removeBtn = document.createElement("button");
+                removeBtn.className = 'bg-red-500 text-white rounded px-3 py-1 text-xs hover:bg-red-600 dark:bg-red-700 dark:hover:bg-red-800';
+                removeBtn.textContent = 'Delete';
+                removeBtn.onclick = function () {
+                    const removed = dnsServers.splice(index, 1);
+                    persistDnsServers();
+                    renderDoHList();
+                    syncRunButtonState();
+                    showModalFeedback('doh', 'info', `${removed[0].name} removed from the list.`);
+                };
+
+                actionsRow.appendChild(removeBtn);
+                li.appendChild(actionsRow);
+                dohList.appendChild(li);
+            });
+        }
+        updateDoHStats();
     }
 
     dohBtn.onclick = function () {
-        dohModal.style.display = "block";
+        showModal(dohModal);
         renderDoHList();
     };
 
     closeDohBtn.onclick = function () {
-        dohModal.style.display = "none";
+        hideModal(dohModal);
+        clearModalFeedback('doh');
     };
 
-    // Add new DoH server with automatic capability check
-    addDoHBtn.onclick = function () {
-        const serverDetails = newDoHInput.value.split(', '); // Expected format: "Name, URL"
-        if (serverDetails.length >= 2) {
-            const [name, url] = serverDetails;
+    if (resetDoHButton) {
+        resetDoHButton.addEventListener('click', () => {
+            resetDnsServersToDefault();
+            renderDoHList();
+        });
+    }
 
-            // Check if server already exists by URL or name
-            const isDuplicate = dnsServers.some(server => server.url === url || server.name === name);
-            if (!isDuplicate) {
-                // If not duplicate, proceed to check and add the server
-                checkServerCapabilities(name, url);
-            } else {
-                alert("A server with the same name or URL already exists. Please enter a unique name and URL.");
+    [newDoHNameInput, newDoHUrlInput, newDoHIpsInput].forEach(inputField => {
+        if (inputField) {
+            inputField.addEventListener('input', () => clearModalFeedback('doh'));
+        }
+    });
+
+    if (addDoHBtn) {
+        let dohCheckInProgress = false;
+        const defaultAddDoHLabel = addDoHBtn.textContent;
+
+        const setDoHBusyState = (state) => {
+            dohCheckInProgress = state;
+            addDoHBtn.disabled = state;
+            addDoHBtn.textContent = state ? 'Checking…' : defaultAddDoHLabel;
+        };
+
+        // Add new DoH server with automatic capability check
+        addDoHBtn.addEventListener('click', async () => {
+            if (dohCheckInProgress) return;
+            const name = newDoHNameInput.value.trim();
+            const url = newDoHUrlInput.value.trim();
+            const ips = parseIpList(newDoHIpsInput.value);
+
+            if (!name || !url) {
+                showModalFeedback('doh', 'error', 'Please provide both a server name and a DoH endpoint URL.');
+                return;
             }
-        } else {
-            alert("Please enter DoH server details in the correct format: Name, URL");
-        }
-        newDoHInput.value = ''; // Clear the input field
-    };
 
-    window.onclick = function (event) {
-        if (event.target === dohModal) {
-            dohModal.style.display = "none";
+            try {
+                new URL(url);
+            } catch (error) {
+                showModalFeedback('doh', 'error', 'Please provide a valid URL (including https://).');
+                return;
+            }
+
+            const isDuplicate = dnsServers.some(server => server.url === url || server.name === name);
+            if (isDuplicate) {
+                showModalFeedback('doh', 'error', 'A server with the same name or URL already exists.');
+                return;
+            }
+
+            showModalFeedback('doh', 'info', 'Checking server capabilities…');
+            setDoHBusyState(true);
+            try {
+                const result = await checkServerCapabilities({name, url, ips});
+                if (newDoHNameInput) newDoHNameInput.value = '';
+                if (newDoHUrlInput) newDoHUrlInput.value = '';
+                if (newDoHIpsInput) newDoHIpsInput.value = '';
+                renderDoHList();
+                const summary = `Added ${name} using ${result.chosenType.toUpperCase()} ${result.allowCors ? 'with' : 'without'} CORS.`;
+                showModalFeedback('doh', 'success', summary);
+            } catch (error) {
+                showModalFeedback('doh', 'error', error.message || 'Failed to add DoH server.');
+            } finally {
+                setDoHBusyState(false);
+            }
+        });
+    }
+
+    window.addEventListener('click', function (event) {
+        if (event.target === modal) {
+            hideModal(modal);
+            clearModalFeedback('hosts');
         }
-    };
+        if (event.target === dohModal) {
+            hideModal(dohModal);
+            clearModalFeedback('doh');
+        }
+    });
 
     // Function to check server capabilities for CORS and method support
-    async function checkServerCapabilities(name, url) {
+    async function checkServerCapabilities({name, url, ips = []}) {
         const testHostname = 'example.com';
         const dnsQuery = buildDNSQuery(testHostname);
         const usesJsonApi = (() => {
@@ -1041,12 +1365,19 @@ document.addEventListener('DOMContentLoaded', function () {
             allowCors = false;
         }
 
-        if (chosenType) {
-            dnsServers.push({name, url, type: chosenType, allowCors, ips: []});
-            renderDoHList();
-            alert(`Server added. GET: ${getCors.success || getNoCors.success} (CORS: ${getCors.cors}), POST: ${postCors.success} (CORS: ${postCors.cors}). Using ${chosenType.toUpperCase()} with${allowCors ? '' : 'out'} CORS.`);
-        } else {
-            alert('Failed to add server. Neither GET nor POST methods succeeded. Check console for details.');
+        if (!chosenType) {
+            throw new Error('Failed to confirm DoH capabilities. Neither GET nor POST tests succeeded.');
         }
+
+        dnsServers.push({
+            name,
+            url,
+            type: chosenType,
+            allowCors,
+            ips: Array.isArray(ips) ? [...ips] : []
+        });
+        persistDnsServers();
+        syncRunButtonState();
+        return {chosenType, allowCors, getCors, postCors, getNoCors};
     }
 });
