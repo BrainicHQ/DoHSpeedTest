@@ -193,8 +193,9 @@ function updateChart() {
             responsive: true,
             maintainAspectRatio: false,
             interaction: {
-                intersect: false,
-                mode: 'index'
+                intersect: true,     // Il tooltip appare solo quando il mouse è sopra la barra
+				mode: 'nearest',     // Cerca l'elemento più vicino
+				axis: 'y'            // Utile per grafici a barre orizzontali
             },
             plugins: {
                 legend: {
@@ -256,6 +257,8 @@ function updateChart() {
             }
         }
     });
+	
+	dnsChart.resize();
 }
 
 // Performance-based color coding (green = fast, red = slow)
