@@ -1,0 +1,26 @@
+# DNS Speed Test
+
+> Free, browser-based DNS-over-HTTPS speed test at https://dnsspeedtest.online/
+
+## What it does
+
+DNS Speed Test benchmarks 28+ DNS-over-HTTPS (DoH) servers directly from the user's browser to find the fastest DNS resolver for their specific location and network conditions.
+
+## Key facts
+
+- Runs entirely client-side — no server-side code, no data collection
+- Tests DNS-over-HTTPS (DoH) servers using the fetch API and performance.now()
+- Includes a warm-up phase to prime TCP/TLS connections before timing
+- Each query has a 5-second timeout; failed queries receive a 5000ms penalty
+- Results include min, median, average, and max response times per server
+- Reliability scoring tracks success/failure ratios
+- Users can add custom hostnames and custom DoH servers
+- Open source under GPL-3.0: https://github.com/BrainicHQ/DoHSpeedTest
+
+## DNS servers tested
+
+AdGuard, AliDNS, OpenDNS, CleanBrowsing, Cloudflare (1.1.1.1), ControlD, DNS.SB, DNSPod, Google (8.8.8.8), Mullvad, NextDNS, OpenBLD, DNS4EU, Quad9 (9.9.9.9), 360, Canadian Shield, Digitale Gesellschaft, DNS for Family, Restena, IIJ, LibreDNS, Switch, Foundation for Applied Privacy, UncensoredDNS, RethinkDNS, FlashStart, Comcast Xfinity.
+
+## Author
+
+Built by Silviu Stroe / Brainic (https://brainic.io)
