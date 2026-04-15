@@ -194,7 +194,7 @@ function updateChart() {
             maintainAspectRatio: false,
             interaction: {
                 intersect: false,
-                mode: 'index'
+                mode: 'y'
             },
             plugins: {
                 legend: {
