@@ -1,314 +1,407 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description"
-          content="Experience the only web-based DNS Speed Test. Find the fastest DNS server for your location without any installations or downloads.">
-    <meta name="keywords" content="DNS Speed Test, DNS Server, Fast DNS, Internet Speed, DNS Performance">
-    <meta name="author" content="@SilviuStroe">
-    <title>Fastest DNS Speed Test - Find Optimal DNS Server | No Install</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        button:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description"
+        content="Free browser-based DNS speed test. Benchmark 28+ DNS-over-HTTPS servers from your location in real time — no install, no data collected.">
+  <meta name="author" content="Silviu Stroe">
+  <title>DNS Speed Test - Find the Fastest DNS Server for Your Location</title>
 
-        .spinner {
-            display: inline-block;
-            position: relative;
-            width: 70px;
-            height: 70px;
-            vertical-align: middle;
-        }
+  <!-- Canonical -->
+  <link rel="canonical" href="https://dnsspeedtest.online/">
 
-        .dot {
-            position: absolute;
-            width: 10px;
-            height: 10px;
-            background-color: #3498db;
-            border-radius: 50%;
-            animation: dot-blink 2s linear infinite;
-        }
+  <!-- Open Graph -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://dnsspeedtest.online/">
+  <meta property="og:title" content="DNS Speed Test - Find Your Fastest DNS">
+  <meta property="og:description" content="Benchmark 28+ DNS-over-HTTPS servers from your browser. Free, private, no install required.">
+  <meta property="og:site_name" content="DNS Speed Test">
+  <meta property="og:image" content="https://dnsspeedtest.online/favicon/android-chrome-512x512.png">
+  <meta property="og:image:width" content="512">
+  <meta property="og:image:height" content="512">
 
-        .dot-1 {
-            left: 30%;
-            top: 50%;
-            animation-delay: -1.6s;
-        }
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="DNS Speed Test - Find Your Fastest DNS">
+  <meta name="twitter:description" content="Benchmark 28+ DNS-over-HTTPS servers from your browser. Free, private, no install required.">
+  <meta name="twitter:image" content="https://dnsspeedtest.online/favicon/android-chrome-512x512.png">
 
-        .dot-2 {
-            left: 50%;
-            top: 30%;
-            animation-delay: -0.8s;
-        }
+  <!-- Favicons -->
+  <link rel="apple-touch-icon" sizes="180x180" href="favicon/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="favicon/favicon-16x16.png">
+  <link rel="manifest" href="favicon/site.webmanifest">
 
-        .dot-3 {
-            left: 70%;
-            top: 50%;
-            animation-delay: 0s;
-        }
+  <!-- Structured Data -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "DNS Speed Test",
+    "url": "https://dnsspeedtest.online/",
+    "description": "Free browser-based tool that benchmarks 28+ DNS-over-HTTPS servers to find the fastest one for your location. No install, no data collected.",
+    "applicationCategory": "UtilitiesApplication",
+    "operatingSystem": "All",
+    "browserRequirements": "Requires a modern browser with fetch API support",
+    "author": {
+      "@type": "Organization",
+      "name": "Brainic",
+      "url": "https://brainic.io"
+    },
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    },
+    "featureList": [
+      "Real-time DNS-over-HTTPS benchmarking",
+      "28+ DNS servers tested",
+      "No installation required",
+      "No data collected",
+      "Customizable test hostnames",
+      "Custom DoH server support",
+      "Reliability scoring",
+      "Visual performance chart"
+    ]
+  }
+  </script>
 
-        @keyframes dot-blink {
-            0%, 100% {
-                opacity: 0;
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            surface: {
+              50: '#f8fafc',
+              900: '#0f172a',
+              950: '#020617',
             }
-            50% {
-                opacity: 1;
-            }
+          }
         }
-    </style>
-    <link rel="apple-touch-icon" sizes="180x180" href="favicon/apple-touch-icon.png">
-    <link rel="icon" type="image/png" sizes="32x32" href="favicon/favicon-32x32.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="favicon/favicon-16x16.png">
-    <link rel="manifest" href="favicon/site.webmanifest">
-    <script type="application/ld+json">
-        {
-            "@context": "http://schema.org",
-            "@type": "SoftwareApplication",
-            "name": "DNS Speed Test",
-            "description": "Discover the fastest DNS server for your specific location with our advanced DNS Speed Test tool. Enhance your browsing speed and internet reliability effortlessly.",
-            "url": "https://dnsspeedtest.online/",
-            "author": {
-                "@type": "Person",
-                "name": "@SilviuStroe"
-            },
-            "applicationCategory": "WebApplication",
-            "operatingSystem": "All",
-            "offers": {
-                "@type": "Offer",
-                "price": "0",
-                "priceCurrency": "USD"
-            }
-        }
-    </script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-zoom/2.0.1/chartjs-plugin-zoom.min.js"></script>
+      }
+    }
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+
+    body { font-feature-settings: 'kern' 1; -webkit-font-smoothing: antialiased; }
+
+    .tabnum { font-variant-numeric: tabular-nums; }
+
+    /* Progress bar fill */
+    #progressFill { transition: width 0.4s ease-out; }
+
+    /* Table row entrance */
+    @keyframes rowIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .row-enter { animation: rowIn 0.25s ease-out both; }
+
+    /* Drawer */
+    #settingsDrawer { transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+    #drawerOverlay { transition: opacity 0.2s ease; }
+
+    /* Toast */
+    @keyframes toastIn {
+      from { opacity: 0; transform: translate(-50%, 12px); }
+      to { opacity: 1; transform: translate(-50%, 0); }
+    }
+    @keyframes toastOut {
+      from { opacity: 1; transform: translate(-50%, 0); }
+      to { opacity: 0; transform: translate(-50%, 12px); }
+    }
+    .toast-enter { animation: toastIn 0.25s ease-out both; }
+    .toast-exit { animation: toastOut 0.2s ease-in both; }
+
+    /* Sort header hover */
+    th[data-sortable] { user-select: none; }
+    th[data-sortable]:hover { background: rgba(0,0,0,0.04); }
+    .dark th[data-sortable]:hover { background: rgba(255,255,255,0.04); }
+
+    /* Performance border accents */
+    .perf-border { border-left: 3px solid transparent; }
+
+    /* Expand indicator */
+    .expand-chevron { transition: transform 0.2s ease; }
+    .row-expanded .expand-chevron { transform: rotate(90deg); }
+
+    /* Results fade in */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .fade-up { animation: fadeUp 0.4s ease-out both; }
+
+    /* Scrollbar for drawer */
+    .drawer-scroll::-webkit-scrollbar { width: 5px; }
+    .drawer-scroll::-webkit-scrollbar-track { background: transparent; }
+    .drawer-scroll::-webkit-scrollbar-thumb { background: #64748b; border-radius: 3px; }
+    .dark .drawer-scroll::-webkit-scrollbar-thumb { background: #475569; }
+
+    /* Button spinner */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .btn-spin { animation: spin 0.8s linear infinite; }
+  </style>
 </head>
-<body class="pt-20 font-sans text-center p-5 bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200">
-<div class="flex justify-center items-center">
-    <div class="w-full md:w-2/3 mx-auto">
-        <h1 id="cta" class="text-4xl text-blue-500 font-bold mb-2 text-center dark:text-blue-300">
-            DNS Speed Test Benchmark - Find the Fastest DNS Server for Your Location
-        </h1>
+
+<body class="bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 min-h-screen antialiased">
+
+  <!-- Nav -->
+  <nav class="fixed top-0 inset-x-0 z-40 h-14 flex items-center justify-between px-4 md:px-8 bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl border-b border-slate-200/60 dark:border-slate-800/60">
+    <a href="/" class="font-semibold text-sm tracking-tight flex items-center gap-2">
+      <svg class="w-5 h-5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+      </svg>
+      DNS Speed Test
+    </a>
+    <div class="flex items-center gap-1">
+      <button id="shareBtn" aria-label="Share" title="Share this tool"
+              class="p-2 rounded-md text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13"/>
+        </svg>
+      </button>
+      <button id="settingsBtn" aria-label="Settings" title="Test settings"
+              class="p-2 rounded-md text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+          <circle cx="12" cy="12" r="3"/>
+        </svg>
+      </button>
+      <button id="themeToggle" aria-label="Toggle theme" title="Toggle dark mode"
+              class="p-2 rounded-md text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+        <svg class="w-4 h-4 block dark:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>
+        </svg>
+        <svg class="w-4 h-4 hidden dark:block" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="5"/><path stroke-linecap="round" d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72l1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+        </svg>
+      </button>
     </div>
-</div>
-<p class="text-lg mx-auto mb-5 leading-relaxed max-w-xl dark:text-gray-300">Optimize your internet experience by finding
-    the fastest DNS server for your location. Just click the button below to start the test.</p>
-<button id="checkButton"
-        class="bg-green-500 text-white py-3 px-6 text-lg rounded-lg shadow-lg transform transition duration-300 ease-in-out hover:scale-105 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-700 focus:ring-opacity-50 mb-5 dark:bg-green-600 dark:hover:bg-green-800">
-    Check DNS Speed
-</button>
-<div class="absolute top-5 right-5">
-    <div class="group relative inline-block">
-        <button id="editButton"
-                class="bg-white text-2xl text-white bg-transparent border-none rounded-full w-10 h-10 flex justify-center items-center shadow-lg">
-            🛠️
+  </nav>
+
+  <main class="pt-14">
+
+    <!-- Hero -->
+    <section class="pt-16 pb-8 md:pt-24 md:pb-12 text-center px-4">
+      <h1 id="heroTitle" class="text-3xl md:text-5xl font-bold tracking-tight max-w-xl mx-auto leading-tight">
+        Find your fastest DNS
+      </h1>
+      <p class="mt-3 text-base md:text-lg text-slate-500 dark:text-slate-400 max-w-md mx-auto leading-relaxed">
+        Real-time DoH benchmark from your browser.<br class="hidden sm:block"> No install. No data collected.
+      </p>
+      <div class="mt-8">
+        <button id="checkButton"
+                class="inline-flex items-center gap-2.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-medium px-8 py-3 rounded-lg transition-colors text-base shadow-sm shadow-emerald-600/20 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-emerald-600">
+          <span id="btnIcon"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span>
+          <span id="btnText">Run Speed Test</span>
         </button>
-        <span class="pointer-events-none absolute top-full right-0 transform translate-y-2 w-max bg-black text-white text-xs rounded py-1 px-2 opacity-0 group-hover:opacity-100 transition-opacity">
-            Edit hosts list
-        </span>
-    </div>
-    <div class="group relative inline-block">
-        <button id="editDoHButton"
-                class="bg-white text-2xl text-white bg-transparent border-none rounded-full w-10 h-10 flex justify-center items-center shadow-lg">
-            🛡️
-        </button>
-        <span class="pointer-events-none absolute top-full right-0 transform translate-y-2 w-max bg-black text-white text-xs rounded py-1 px-2 opacity-0 group-hover:opacity-100 transition-opacity">
-            Add DoH servers
-        </span>
-    </div>
-</div>
-<div id="loadingMessage" class="hidden"></div>
-<!-- Modal for editing DNS test hosts -->
-<div id="websiteModal" class="hidden fixed z-50 inset-0 flex items-center justify-center bg-black bg-opacity-60">
-    <div class="modal-content relative bg-white pt-4 pb-2 px-4 rounded-lg shadow-xl w-full sm:w-11/12 md:w-1/2 mx-auto my-2 sm:my-4 overflow-hidden dark:bg-gray-700 dark:text-white">
-        <span class="close absolute top-2 right-2 text-3xl font-bold text-gray-500 hover:text-black cursor-pointer p-1 dark:text-gray-200 dark:hover:text-white">×</span>
-        <h2 class="text-2xl sm:text-3xl mb-2 sm:mb-4 font-semibold dark:text-gray-200">Edit DNS Test Hosts</h2>
-        <p class="mb-2 sm:mb-4 text-base sm:text-lg leading-relaxed dark:text-gray-300">
-            Add or remove hostnames to tailor DNS server testing. Incorporate websites you frequently visit or popular
-            services to refine the accuracy of your DNS speed test.
-        </p>
-        <!-- Scrollable List Container -->
-        <div class="overflow-auto max-h-[50vh] sm:max-h-[60vh]"> <!-- Adjust max height as needed -->
-            <ul id="websiteList" class="list-none p-0">
-                <!-- Dynamic list items will be added here -->
-            </ul>
+      </div>
+
+      <!-- Progress (hidden until test starts) -->
+      <div id="progressContainer" class="hidden mt-6 max-w-sm mx-auto">
+        <div class="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mb-1.5 tabnum">
+          <span id="progressPhase">Warming up...</span>
+          <span id="progressCount"></span>
         </div>
-        <div class="flex mt-2 sm:mt-4 justify-center">
-            <input type="text" id="newWebsite"
-                   class="py-2 mr-2 px-4 w-3/4 border-2 border-gray-400 rounded focus:border-blue-500 focus:outline-none transition duration-200 ease-in-out placeholder-gray-600 dark:bg-gray-800 dark:border-gray-600 dark:placeholder-gray-400"
-                   placeholder="Add new hostname...">
-            <button id="addHostname"
-                    class="py-2 px-6 bg-green-500 text-white rounded hover:bg-green-600 text-lg dark:bg-green-700 dark:hover:bg-green-900">
-                Add
-            </button>
+        <div class="h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+          <div id="progressFill" class="h-full bg-emerald-500 rounded-full" style="width: 0%"></div>
         </div>
-    </div>
-</div>
-<div id="dnsResults" aria-live="polite" class="mt-5 overflow-x-auto">
-    <table id="resultsTable" class="w-full border-collapse table-fixed">
-        <thead>
-        <tr>
-            <th class="w-1/3 py-2 px-4 text-left border-b border-gray-300 bg-blue-200 text-gray-700 cursor-pointer dark:bg-gray-800 dark:text-gray-200">
-                DNS Server
-            </th>
-            <th onclick="sortTable(1)"
-                class="py-2 px-4 text-center border-b border-gray-300 bg-blue-200 text-gray-700 cursor-pointer dark:bg-gray-800 dark:text-gray-200">
-                Min (ms) &#x2195;
-            </th>
-            <th onclick="sortTable(2)"
-                class="py-2 px-4 text-center border-b border-gray-300 bg-blue-200 text-gray-700 cursor-pointer dark:bg-gray-800 dark:text-gray-200">
-                Median (ms) &#x2195;
-            </th>
-            <th onclick="sortTable(3)"
-                class="py-2 px-4 text-center border-b border-gray-300 bg-blue-200 text-gray-700 cursor-pointer dark:bg-gray-800 dark:text-gray-200">
-                Average (ms) &#x2195;
-            </th>
-            <th onclick="sortTable(4)"
-                class="py-2 px-4 text-center border-b border-gray-300 bg-blue-200 text-gray-700 cursor-pointer dark:bg-gray-800 dark:text-gray-200">
-                Max (ms) &#x2195;
-            </th>
-        </tr>
-        </thead>
-        <tbody class="text-gray-800 dark:text-gray-200">
-        <!-- Table rows will be dynamically added here -->
-        </tbody>
-    </table>
-</div>
-<!-- Modal for adding new DoH servers -->
-<div id="dohModal" class="hidden fixed z-50 inset-0 flex items-center justify-center bg-black bg-opacity-60">
-    <div class="modal-content relative bg-white pt-4 pb-2 px-4 rounded-lg shadow-xl w-full sm:w-11/12 md:w-1/2 mx-auto my-2 sm:my-4 overflow-hidden dark:bg-gray-700 dark:text-white">
-        <span class="close absolute top-2 right-2 text-3xl font-bold text-gray-500 hover:text-black cursor-pointer p-1 dark:text-gray-200 dark:hover:text-white">×</span>
-        <h2 class="text-2xl sm:text-3xl mb-2 sm:mb-4 font-semibold dark:text-gray-200">Add Custom DoH Servers</h2>
-        <p class="mb-2 sm:mb-4 text-base sm:text-lg leading-relaxed dark:text-gray-300">
-            Enhance your DNS speed test by adding custom DNS-over-HTTPS (DoH) servers. Include popular DoH providers or
-            your preferred services to expand the range of tested DNS servers.
-        </p>
-        <!-- Scrollable List Container -->
-        <div class="overflow-auto max-h-[50vh] sm:max-h-[60vh]"> <!-- Adjust max height as needed -->
-            <ul id="dohList" class="list-none p-0">
-                <!-- Dynamic list items will be added here -->
-            </ul>
+      </div>
+    </section>
+
+    <!-- Top Results (shown after test completes) -->
+    <section id="topResults" class="hidden max-w-2xl mx-auto px-4 pb-6">
+      <div class="border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden">
+        <div class="px-4 py-2.5 bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-800">
+          <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Fastest for your location</h2>
         </div>
-        <div class="flex mt-2 sm:mt-4 justify-center">
-            <input type="url" id="newDoH"
-                   class="py-2 mr-2 px-4 w-3/4 border-2 border-gray-400 rounded focus:border-blue-500 focus:outline-none transition duration-200 ease-in-out placeholder-gray-600 dark:bg-gray-800 dark:border-gray-600 dark:placeholder-gray-400"
-                   placeholder="Add new DoH server in the Name, URL format...">
-            <button id="addDoH"
-                    class="py-2 px-6 bg-green-500 text-white rounded hover:bg-green-600 text-lg dark:bg-green-700 dark:hover:bg-green-900">
-                Add
-            </button>
+        <ol id="rankingList" class="divide-y divide-slate-100 dark:divide-slate-800/50"></ol>
+      </div>
+    </section>
+
+    <!-- Chart -->
+    <section id="chartSection" class="hidden max-w-5xl mx-auto mt-4 px-4">
+      <div class="border border-slate-200 dark:border-slate-800 rounded-lg p-4 bg-white dark:bg-slate-900/30">
+        <div style="position: relative; height: 400px; width: 100%;">
+          <canvas id="dnsChart"></canvas>
         </div>
-    </div>
-</div>
-<div id="chartContainer" class="w-full md:w-4/5 mx-auto mt-5 px-2 md:px-0 hidden">
-    <div class="chart-container" style="position: relative; height: 400px; width: 100%;">
-        <canvas id="dnsChart"></canvas>
-    </div>
-    <div class="text-center mt-3">
-        <p class="text-sm text-gray-600 dark:text-gray-400 hidden md:block">DNS Speed Comparison (Fastest → Slowest)</p>
-    </div>
-</div>
-<div id="disclaimer"
-     class="mt-10 px-5 py-4 bg-white border border-gray-300 rounded text-left max-w-7xl mx-auto leading-relaxed space-y-4 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200">
-    <h2 class="text-2xl text-blue-500 mb-4 dark:text-blue-400">Disclaimer</h2>
+      </div>
+    </section>
 
-    <p>
-        This <strong>DNS Speed Test tool</strong> runs entirely in your browser, sending live DNS-over-HTTPS (DoH)
-        queries from your local environment. No server-side code is involved, and no personal data is collected. By
-        measuring directly from your current network, the tool aims to provide <strong>accurate, real-world
-        results</strong>.
-    </p>
-
-    <p>
-        <strong>Warm-Up Phase:</strong> Before timing each DNS server, the script primes connections and caches to
-        minimize the overhead of TCP/TLS handshakes. This warm-up step helps ensure consistent, ready-to-go conditions
-        when actual measurements begin. While it adds a small initial delay, it more fairly represents typical DoH
-        performance once connections are established.
-    </p>
-
-    <p>
-        <strong>Time Measurement & Browser Overhead:</strong> We use the browser’s <code>fetch</code> and
-        <code>performance.now()</code> APIs to measure full DoH round-trip times. Because this includes HTTP/TLS
-        overhead, results may be higher than raw DNS queries performed by other tools. Depending on server capabilities,
-        our script may use <code>GET</code> or <code>POST</code>, CORS or <code>no-cors</code> mode. Some endpoints
-        require a preflight request, which can slightly affect timings.
-    </p>
-
-    <p>
-        <strong>Timeouts & Unavailable Results:</strong> Each query times out after 5 seconds. If a server does not
-        respond in that window, it appears as <em>Unavailable</em>. This ensures the test continues promptly even when
-        certain DNS endpoints are slow or unreachable.
-    </p>
-
-    <p>
-        <strong>Influence of Local Conditions:</strong> Network latency, bandwidth, and browser load can cause
-        variability. <strong>We recommend running multiple tests</strong> at different times or under different network
-        conditions to get a broader picture. The tool’s output is best used as a <strong>relative comparison</strong>
-        among DNS servers under your specific circumstances rather than an absolute global measure.
-    </p>
-
-    <p>
-        While <strong>we strive for accuracy</strong> by testing each DNS server with the same set of hostnames (and
-        reusing warm connections), results are still <strong>indicative</strong>. Use them as a guide when deciding
-        which DNS server offers the best performance for your location and environment.
-    </p>
-</div>
-<footer class="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 border-t border-gray-200 dark:border-gray-700 mt-16">
-    <div class="container mx-auto px-4 py-6">
-        <!-- Support Section -->
-        <div class="text-center mb-6">
-            <p class="text-gray-600 dark:text-gray-400 mb-4">
-                💚 Help keep this tool free and updated
-            </p>
-
-            <div class="flex flex-col sm:flex-row gap-3 justify-center items-center">
-                <a href="https://www.buymeacoffee.com/silviu"
-                   target="_blank"
-                   rel="noopener noreferrer"
-                   class="inline-flex items-center gap-2 bg-yellow-400 hover:bg-yellow-500 text-black font-medium px-4 py-2 rounded-full transition-all duration-200 transform hover:scale-105 shadow-md hover:shadow-lg text-sm">
-                    <span>☕</span>
-                    <span>Buy me a coffee</span>
-                </a>
-
-                <span class="text-gray-400">or</span>
-
-                <a href="https://www.linkedin.com/in/silviustroe/"
-                   title="Hire Silviu Stroe"
-                   target="_blank"
-                   rel="noopener noreferrer"
-                   class="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium transition-colors duration-200 text-sm">
-                    <span class="text-base">👨🏻‍💻</span>
-                    <span>Hire me</span>
-                </a>
-            </div>
+    <!-- Results Table -->
+    <section id="tableSection" class="hidden max-w-6xl mx-auto mt-6 px-4" aria-live="polite">
+      <div class="border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden">
+        <div class="overflow-x-auto">
+          <table id="resultsTable" class="w-full text-sm">
+            <thead>
+              <tr class="bg-slate-50 dark:bg-slate-900/50 text-slate-600 dark:text-slate-400 text-xs uppercase tracking-wider">
+                <th class="w-[36%] py-3 px-4 text-left font-semibold">DNS Server</th>
+                <th data-sortable data-col="1" class="py-3 px-4 text-right font-semibold cursor-pointer">
+                  <span class="inline-flex items-center gap-1">Min<span class="sort-arrow text-slate-400">&#8597;</span></span>
+                </th>
+                <th data-sortable data-col="2" class="py-3 px-4 text-right font-semibold cursor-pointer">
+                  <span class="inline-flex items-center gap-1">Median<span class="sort-arrow text-slate-400">&#8597;</span></span>
+                </th>
+                <th data-sortable data-col="3" class="py-3 px-4 text-right font-semibold cursor-pointer">
+                  <span class="inline-flex items-center gap-1">Avg<span class="sort-arrow text-slate-400">&#8597;</span></span>
+                </th>
+                <th data-sortable data-col="4" class="py-3 px-4 text-right font-semibold cursor-pointer">
+                  <span class="inline-flex items-center gap-1">Max<span class="sort-arrow text-slate-400">&#8597;</span></span>
+                </th>
+              </tr>
+            </thead>
+            <tbody id="resultsBody"></tbody>
+          </table>
         </div>
+      </div>
+      <p class="mt-2 text-xs text-slate-400 dark:text-slate-500 text-center">Click any row to see per-hostname breakdown. All times in ms.</p>
+    </section>
 
-        <!-- GitHub & Copyright -->
-        <div class="border-t border-gray-200 dark:border-gray-700 pt-4 flex flex-col sm:flex-row justify-between items-center gap-3">
-            <p class="text-xs text-gray-500 dark:text-gray-400">
-                © 2024-2025 <span class="font-medium">DNSSpeedTest.online</span> • Made with ❤️ for the community by
-                <a title="Brainic - AI Solutions & Software Development" href="https://brainic.io" target="_blank"
-                   rel="noopener noreferrer"
-                   class="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium transition-colors duration-200 text-sm">Brainic</a>
-            </p>
-
-            <div class="flex items-center gap-3">
-                <span class="text-xs text-gray-500 dark:text-gray-400">⭐ Star on GitHub:</span>
-                <a rel="noopener noreferrer"
-                   class="github-button"
-                   href="https://github.com/BrainicHQ/DoHSpeedTest"
-                   data-show-count="true"
-                   aria-label="Star BrainicHQ/DoHSpeedTest on GitHub">
-                    Star
-                </a>
-            </div>
+    <!-- Methodology / Disclaimer -->
+    <section class="max-w-3xl mx-auto mt-12 px-4 pb-8">
+      <details class="group border border-slate-200 dark:border-slate-800 rounded-lg">
+        <summary class="flex items-center justify-between px-4 py-3 cursor-pointer text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 transition-colors">
+          How this test works
+          <svg class="w-4 h-4 transition-transform group-open:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
+          </svg>
+        </summary>
+        <div class="px-4 pb-4 text-sm text-slate-600 dark:text-slate-400 leading-relaxed space-y-3 border-t border-slate-200 dark:border-slate-800 pt-3">
+          <p>
+            This tool runs entirely in your browser, sending live DNS-over-HTTPS (DoH)
+            queries from your local environment. No server-side code is involved, and no personal data is collected.
+          </p>
+          <p>
+            <strong class="text-slate-700 dark:text-slate-300">Warm-Up Phase:</strong> Before timing each DNS server, the script primes connections and caches to
+            minimize TCP/TLS handshake overhead. This more fairly represents typical DoH performance once connections are established.
+          </p>
+          <p>
+            <strong class="text-slate-700 dark:text-slate-300">Measurement:</strong> We use <code class="text-xs bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded">fetch</code> and
+            <code class="text-xs bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded">performance.now()</code> to measure full DoH round-trip times. Results include HTTP/TLS
+            overhead, so they may be higher than raw DNS queries from other tools.
+          </p>
+          <p>
+            <strong class="text-slate-700 dark:text-slate-300">Timeouts:</strong> Each query times out after 5 seconds.
+            Unresponsive servers appear as <em>Unavailable</em> and receive a 5000ms penalty to prevent skewing averages.
+          </p>
+          <p>
+            <strong class="text-slate-700 dark:text-slate-300">Variability:</strong> Network latency, bandwidth, and browser load cause variability.
+            Run multiple tests at different times for a broader picture. Results are best used as a
+            <strong class="text-slate-700 dark:text-slate-300">relative comparison</strong> among servers under your specific circumstances.
+          </p>
         </div>
+      </details>
+    </section>
+  </main>
+
+  <!-- Settings Drawer -->
+  <div id="drawerOverlay" class="hidden fixed inset-0 z-50 bg-black/40"></div>
+  <aside id="settingsDrawer"
+         class="fixed top-0 right-0 bottom-0 w-full sm:w-[400px] z-50 bg-white dark:bg-slate-900 shadow-2xl transform translate-x-full flex flex-col">
+    <header class="flex items-center justify-between px-4 h-14 border-b border-slate-200 dark:border-slate-800 shrink-0">
+      <h2 class="font-semibold text-sm">Settings</h2>
+      <button id="closeDrawer" class="p-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" aria-label="Close settings">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </header>
+
+    <!-- Tabs -->
+    <div class="flex border-b border-slate-200 dark:border-slate-800 shrink-0">
+      <button data-drawer-tab="hosts"
+              class="drawer-tab flex-1 py-2.5 text-xs font-semibold uppercase tracking-wider text-center border-b-2 transition-colors border-emerald-600 text-emerald-600 dark:text-emerald-400 dark:border-emerald-400">
+        Test Hosts
+      </button>
+      <button data-drawer-tab="doh"
+              class="drawer-tab flex-1 py-2.5 text-xs font-semibold uppercase tracking-wider text-center border-b-2 transition-colors border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
+        DoH Servers
+      </button>
     </div>
-</footer>
-<script async defer src="https://buttons.github.io/buttons.js"></script>
-<script src="script.js"></script>
+
+    <!-- Hosts Panel -->
+    <div id="hostsPanel" class="drawer-panel flex-1 flex flex-col min-h-0">
+      <p class="px-4 pt-3 pb-2 text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+        Hostnames used to benchmark each DNS server. Add sites you visit frequently for more relevant results.
+      </p>
+      <div class="flex-1 overflow-y-auto px-4 drawer-scroll">
+        <ul id="websiteList" class="space-y-1 pb-2"></ul>
+      </div>
+      <div class="px-4 py-3 border-t border-slate-200 dark:border-slate-800 shrink-0">
+        <div class="flex gap-2">
+          <input type="text" id="newWebsite"
+                 class="flex-1 px-3 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500 transition"
+                 placeholder="example.com or https://...">
+          <button id="addHostname"
+                  class="px-4 py-2 text-sm font-medium bg-emerald-600 hover:bg-emerald-700 text-white rounded-md transition-colors shrink-0">
+            Add
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- DoH Panel -->
+    <div id="dohPanel" class="drawer-panel hidden flex-1 flex flex-col min-h-0">
+      <p class="px-4 pt-3 pb-2 text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+        Add custom DNS-over-HTTPS servers to include in the benchmark. The tool auto-detects CORS and method support.
+      </p>
+      <div class="flex-1 overflow-y-auto px-4 drawer-scroll">
+        <ul id="dohList" class="space-y-1 pb-2"></ul>
+      </div>
+      <div class="px-4 py-3 border-t border-slate-200 dark:border-slate-800 shrink-0 space-y-2">
+        <input type="text" id="newDoHName"
+               class="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500 transition"
+               placeholder="Server name">
+        <div class="flex gap-2">
+          <input type="url" id="newDoHUrl"
+                 class="flex-1 px-3 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500 transition"
+                 placeholder="https://dns.example.com/dns-query">
+          <button id="addDoH"
+                  class="px-4 py-2 text-sm font-medium bg-emerald-600 hover:bg-emerald-700 text-white rounded-md transition-colors shrink-0">
+            Add
+          </button>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Toast Container -->
+  <div id="toastContainer" class="fixed bottom-6 left-1/2 z-[60] pointer-events-none"></div>
+
+  <!-- Footer -->
+  <footer class="border-t border-slate-200 dark:border-slate-800 mt-8">
+    <div class="max-w-4xl mx-auto px-4 py-6">
+      <div class="flex flex-col sm:flex-row items-center justify-center gap-3 mb-4">
+        <a href="https://www.buymeacoffee.com/silviu" target="_blank" rel="noopener noreferrer"
+           class="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-amber-600 dark:text-slate-400 dark:hover:text-amber-400 transition-colors">
+          <span>&#9749;</span> Buy me a coffee
+        </a>
+        <span class="text-slate-300 dark:text-slate-700 hidden sm:inline">|</span>
+        <a href="https://www.linkedin.com/in/silviustroe/" title="Hire Silviu Stroe" target="_blank" rel="noopener noreferrer"
+           class="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-blue-600 dark:text-slate-400 dark:hover:text-blue-400 transition-colors">
+          Hire me
+        </a>
+        <span class="text-slate-300 dark:text-slate-700 hidden sm:inline">|</span>
+        <a rel="noopener noreferrer" class="github-button" href="https://github.com/BrainicHQ/DoHSpeedTest"
+           data-show-count="true" aria-label="Star BrainicHQ/DoHSpeedTest on GitHub">Star</a>
+      </div>
+      <p class="text-xs text-slate-400 dark:text-slate-500 text-center">
+        &copy; 2024-2026 DNSSpeedTest.online &middot; Made by
+        <a href="https://brainic.io" target="_blank" rel="noopener noreferrer"
+           title="Brainic - AI Solutions & Software Development"
+           class="text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors">Brainic</a>
+      </p>
+    </div>
+  </footer>
+
+  <script async defer src="https://buttons.github.io/buttons.js"></script>
+  <script src="script.js"></script>
 </body>
 </html>
