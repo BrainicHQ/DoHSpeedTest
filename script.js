@@ -18,7 +18,124 @@
  * along with DoHSpeedTest. If not, see <http://www.gnu.org/licenses/>.
  */
 
+// Stats/validation (canonical copy in stats.js for unit tests — keep in sync)
+const MIN_SUCCESS_RATE_FOR_RANKING = 0.8;
+
+function median(values) {
+    if (!values.length) return null;
+    const sorted = [...values].sort((a, b) => a - b);
+    const mid = Math.floor(sorted.length / 2);
+    return sorted.length % 2 === 0
+        ? (sorted[mid - 1] + sorted[mid]) / 2
+        : sorted[mid];
+}
+
+function calculateSpeedStats(results) {
+    const values = results.filter(v => typeof v === 'number');
+    if (!values.length) {
+        return {
+            min: 'Unavailable',
+            median: 'Unavailable',
+            max: 'Unavailable',
+            avg: 'Unavailable',
+            jitter: 'Unavailable'
+        };
+    }
+    const sorted = [...values].sort((a, b) => a - b);
+    const sum = sorted.reduce((acc, v) => acc + v, 0);
+    const avg = sum / sorted.length;
+    const med = median(sorted);
+    return {
+        min: sorted[0],
+        median: med,
+        max: sorted[sorted.length - 1],
+        avg,
+        jitter: sorted[sorted.length - 1] - sorted[0]
+    };
+}
+
+function buildReliabilityProfile(speedResults, totalQueries) {
+    if (totalQueries === 0) {
+        return {
+            status: 'no-data',
+            successCount: 0,
+            failureCount: 0,
+            totalQueries: 0,
+            message: 'No hostnames configured for testing.'
+        };
+    }
+    const successCount = speedResults.filter(s => typeof s === 'number').length;
+    const failureCount = totalQueries - successCount;
+    const successRate = successCount / totalQueries;
+
+    let status;
+    let message;
+    if (successCount === 0) {
+        status = 'failed';
+        message = 'All hostname queries failed or timed out.';
+    } else if (failureCount > 0) {
+        status = 'partial';
+        message = `${failureCount} of ${totalQueries} hostnames had no successful response. Failed hosts are excluded from speed scores.`;
+    } else {
+        status = 'healthy';
+        message = 'All hostname queries succeeded.';
+    }
+    return { status, successCount, failureCount, totalQueries, successRate, message };
+}
+
+function isEligibleForRanking(server, options = {}) {
+    const { verifiedOnly = true } = options;
+    if (!server.reliability || !server.speed || typeof server.speed.median !== 'number') {
+        return false;
+    }
+    if (server.reliability.successRate < MIN_SUCCESS_RATE_FOR_RANKING) return false;
+    if (verifiedOnly && server.measurementConfidence !== 'verified') return false;
+    return true;
+}
+
+function validateDnsJson(data) {
+    return Boolean(
+        data &&
+        data.Status === 0 &&
+        Array.isArray(data.Answer) &&
+        data.Answer.length > 0
+    );
+}
+
+function validateDnsWireResponse(buffer) {
+    if (!buffer || buffer.byteLength < 12) return false;
+    const view = new DataView(buffer);
+    const rcode = view.getUint16(2) & 0x0f;
+    const ancount = view.getUint16(6);
+    return rcode === 0 && ancount > 0;
+}
+
 // ─── Configuration ───────────────────────────────────────────────────────────
+
+const TEST_MODES = {
+    quick: { samples: 1, timeout: 5000 },
+    standard: { samples: 3, timeout: 5000 },
+    accurate: { samples: 5, timeout: 8000 }
+};
+const SAMPLE_DELAY_MS = 75;
+const WARMUP_QUERIES_PER_HOST = 1;
+const WARMUP_HOST_COUNT = 3;
+const PARALLEL_HOST_LIMIT = 4;
+const WARMUP_HOST = 'example.com';
+
+const STORAGE_KEYS = {
+    theme: 'dns-theme',
+    settings: 'dns-settings',
+    hosts: 'dns-test-hosts',
+    customServers: 'dns-custom-servers',
+    lastResults: 'dns-last-results'
+};
+
+const SETUP_LINKS = {
+    windows: 'https://www.windowscentral.com/software-apps/how-to-configure-dns-over-https-doh-on-windows-11',
+    macos: 'https://support.mozilla.org/en-US/kb/firefox-dns-over-https',
+    android: 'https://support.google.com/android/answer/9657188'
+};
 
 const topWebsites = [
     'google.com', 'youtube.com', 'facebook.com', 'instagram.com', 'chatgpt.com',
@@ -26,19 +143,17 @@ const topWebsites = [
     'tiktok.com', 'pinterest.com'
 ];
 
-const TIMEOUT_PENALTY_MS = 5000;
-
-const dnsServers = [
+const DEFAULT_DNS_SERVERS = [
     { name: "AdGuard", url: "https://dns.adguard-dns.com/dns-query", ips: ["94.140.14.14", "94.140.15.15"] },
     { name: "AliDNS", url: "https://dns.alidns.com/dns-query", ips: ["223.5.5.5", "223.6.6.6"] },
     { name: "OpenDNS", url: "https://doh.opendns.com/dns-query", ips: ["208.67.222.222", "208.67.220.220"] },
-    { name: "CleanBrowsing", url: "https://doh.cleanbrowsing.org/doh/family-filter/", ips: ["185.228.168.9", "185.228.169.9"] },
+    { name: "CleanBrowsing", url: "https://doh.cleanbrowsing.org/doh/family-filter/", ips: ["185.228.168.9", "185.228.169.9"], tags: ["family-filter"] },
     { name: "Cloudflare", url: "https://cloudflare-dns.com/dns-query", type: "get", allowCors: true, ips: ["1.1.1.1", "1.0.0.1"] },
     { name: "ControlD", url: "https://freedns.controld.com/p0", ips: ["76.76.2.0", "76.223.122.150"] },
     { name: "DNS.SB", url: "https://doh.dns.sb/dns-query", type: "get", allowCors: true, ips: ["185.222.222.222", "45.11.45.11"] },
     { name: "DNSPod", url: "https://dns.pub/dns-query", type: "post", allowCors: false, ips: ["119.29.29.29", "182.254.116.116"] },
     { name: "Google", url: "https://dns.google/resolve", type: "get", allowCors: true, ips: ["8.8.8.8", "8.8.4.4"] },
-    { name: "Mullvad", url: "https://dns.mullvad.net/dns-query", ips: ["194.242.2.2", "194.242.2.2"], type: "get", allowCors: false },
+    { name: "Mullvad", url: "https://dns.mullvad.net/dns-query", ips: ["194.242.2.2", "194.242.2.3"], type: "get", allowCors: false },
     { name: "Mullvad Base", url: "https://base.dns.mullvad.net/dns-query", ips: ["194.242.2.4", "194.242.2.4"], type: "get", allowCors: false },
     { name: "NextDNS", url: "https://dns.nextdns.io", type: "get", ips: ["45.90.28.0", "45.90.30.0"] },
     { name: "OpenBLD", url: "https://ada.openbld.net/dns-query", ips: ["146.112.41.2", "146.112.41.102"], allowCors: false },
@@ -47,7 +162,7 @@ const dnsServers = [
     { name: "360", url: "https://doh.360.cn/dns-query", ips: ["101.226.4.6", "180.163.224.54"] },
     { name: "Canadian Shield", url: "https://private.canadianshield.cira.ca/dns-query", ips: ["149.112.121.10", "149.112.122.10"] },
     { name: "Digitale Gesellschaft", url: "https://dns.digitale-gesellschaft.ch/dns-query", ips: ["185.95.218.42", "185.95.218.43"] },
-    { name: "DNS for Family", url: "https://dns-doh.dnsforfamily.com/dns-query", ips: ["94.130.180.225", "78.47.64.161"] },
+    { name: "DNS for Family", url: "https://dns-doh.dnsforfamily.com/dns-query", ips: ["94.130.180.225", "78.47.64.161"], tags: ["family-filter"] },
     { name: "Restena", url: "https://dnspub.restena.lu/dns-query", ips: ["158.64.1.29"] },
     { name: "IIJ", url: "https://public.dns.iij.jp/dns-query", ips: ["203.180.164.45", "203.180.166.45"] },
     { name: "LibreDNS", url: "https://doh.libredns.gr/dns-query", ips: ["116.202.176.26", "147.135.76.183"] },
@@ -55,9 +170,115 @@ const dnsServers = [
     { name: "Foundation for Applied Privacy", url: "https://doh.applied-privacy.net/query", ips: ["146.255.56.98"] },
     { name: "UncensoredDNS", url: "https://anycast.uncensoreddns.org/dns-query", ips: ["91.239.100.100", "89.233.43.71"] },
     { name: "RethinkDNS", url: "https://sky.rethinkdns.com/dns-query", ips: ["104.21.83.62", "172.67.214.246"], allowCors: false },
-    { name: "FlashStart (registration required)", url: "https://doh.flashstart.com/f17c9ee5", type: "post", allowCors: false, ips: ["185.236.104.104"] },
     { name: "Comcast Xfinity", url: "https://doh.xfinity.com/dns-query", type: "get", allowCors: false, ips: ["75.75.75.75", "75.75.76.76"] }
 ];
+
+let dnsServers = [];
+let customDnsServers = [];
+
+let userSettings = {
+    testMode: 'standard',
+    rankByWarm: false,
+    verifiedOnlyRanking: true,
+    hideFamilyFilter: false
+};
+
+let testAbortController = null;
+let cancelRequested = false;
+let lastTestSnapshot = null;
+
+function getTestModeConfig() {
+    return TEST_MODES[userSettings.testMode] || TEST_MODES.standard;
+}
+
+function getSamplesPerHost() {
+    return getTestModeConfig().samples;
+}
+
+function getQueryTimeoutMs() {
+    return getTestModeConfig().timeout;
+}
+
+function ensureServerMetadata(server) {
+    server.measurementConfidence = server.allowCors ? 'verified' : 'timing-only';
+    try {
+        const u = new URL(server.url);
+        const isJson = (server.type || 'post') === 'get' && u.pathname.includes('/resolve');
+        if (isJson) server.transport = 'GET JSON';
+        else if ((server.type || 'post') === 'get') server.transport = 'GET wire';
+        else server.transport = 'POST wire';
+    } catch {
+        server.transport = 'POST wire';
+    }
+}
+
+function rebuildDnsServerList() {
+    let list = DEFAULT_DNS_SERVERS.map(s => ({ ...s }));
+    if (userSettings.hideFamilyFilter) {
+        list = list.filter(s => !s.tags?.includes('family-filter'));
+    }
+    list.push(...customDnsServers.map(s => ({ ...s })));
+    dnsServers = list;
+    dnsServers.forEach(ensureServerMetadata);
+}
+
+function loadPersistedData() {
+    try {
+        const settings = JSON.parse(localStorage.getItem(STORAGE_KEYS.settings) || '{}');
+        userSettings = { ...userSettings, ...settings };
+    } catch { /* ignore */ }
+    try {
+        const hosts = JSON.parse(localStorage.getItem(STORAGE_KEYS.hosts) || 'null');
+        if (Array.isArray(hosts) && hosts.length) {
+            topWebsites.length = 0;
+            topWebsites.push(...hosts);
+        }
+    } catch { /* ignore */ }
+    try {
+        customDnsServers = JSON.parse(localStorage.getItem(STORAGE_KEYS.customServers) || '[]');
+        if (!Array.isArray(customDnsServers)) customDnsServers = [];
+    } catch {
+        customDnsServers = [];
+    }
+    try {
+        lastTestSnapshot = JSON.parse(localStorage.getItem(STORAGE_KEYS.lastResults) || 'null');
+    } catch {
+        lastTestSnapshot = null;
+    }
+    rebuildDnsServerList();
+}
+
+function saveSettings() {
+    localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(userSettings));
+}
+
+function saveHosts() {
+    localStorage.setItem(STORAGE_KEYS.hosts, JSON.stringify(topWebsites));
+}
+
+function saveCustomServers() {
+    localStorage.setItem(STORAGE_KEYS.customServers, JSON.stringify(customDnsServers));
+}
+
+function saveLastResults(snapshot) {
+    lastTestSnapshot = snapshot;
+    localStorage.setItem(STORAGE_KEYS.lastResults, JSON.stringify(snapshot));
+}
+
+async function mapPool(items, limit, iterator) {
+    const results = new Array(items.length);
+    let nextIndex = 0;
+    async function worker() {
+        while (nextIndex < items.length) {
+            if (cancelRequested) return;
+            const i = nextIndex++;
+            results[i] = await iterator(items[i], i);
+        }
+    }
+    const workers = Array.from({ length: Math.min(limit, items.length) }, () => worker());
+    await Promise.all(workers);
+    return results;
+}
 
 // ─── State ───────────────────────────────────────────────────────────────────
 
@@ -66,41 +287,223 @@ let chartData = [];
 let sortState = { column: -1, direction: 'asc' };
 let testRunning = false;
 
-// ─── DOM References ──────────────────────────────────────────────────────────
+// ─── DOM References (set in initApp) ─────────────────────────────────────────
 
 const $ = (id) => document.getElementById(id);
-const checkButton = $('checkButton');
-const btnIcon = $('btnIcon');
-const btnText = $('btnText');
-const progressContainer = $('progressContainer');
-const progressFill = $('progressFill');
-const progressPhase = $('progressPhase');
-const progressCount = $('progressCount');
-const topResults = $('topResults');
-const rankingList = $('rankingList');
-const chartSection = $('chartSection');
-const tableSection = $('tableSection');
-const resultsBody = $('resultsBody');
+let checkButton;
+let btnIcon;
+let btnText;
+let progressContainer;
+let progressFill;
+let progressPhase;
+let progressCount;
+let topResults;
+let rankingList;
+let chartSection;
+let tableSection;
+let resultsBody;
+let drawer;
+let overlay;
+let exportBtn;
+let winnerGuide;
+let timingOnlySection;
+let timingOnlyList;
+
+function initApp() {
+    loadPersistedData();
+    checkButton = $('checkButton');
+    btnIcon = $('btnIcon');
+    btnText = $('btnText');
+    progressContainer = $('progressContainer');
+    progressFill = $('progressFill');
+    progressPhase = $('progressPhase');
+    progressCount = $('progressCount');
+    topResults = $('topResults');
+    rankingList = $('rankingList');
+    chartSection = $('chartSection');
+    tableSection = $('tableSection');
+    resultsBody = $('resultsBody');
+    drawer = $('settingsDrawer');
+    overlay = $('drawerOverlay');
+    exportBtn = $('exportBtn');
+    winnerGuide = $('winnerGuide');
+    timingOnlySection = $('timingOnlySection');
+    timingOnlyList = $('timingOnlyList');
+
+    if (!checkButton) {
+        console.error('DoHSpeedTest: #checkButton not found');
+        return;
+    }
+
+    syncSettingsUi();
+    bindUiHandlers();
+    initTheme();
+}
+
+function syncSettingsUi() {
+    document.querySelectorAll('input[name="testMode"]').forEach(radio => {
+        radio.checked = radio.value === userSettings.testMode;
+    });
+    const rankByWarm = $('rankByWarm');
+    const verifiedOnly = $('verifiedOnlyRanking');
+    const hideFamily = $('hideFamilyFilter');
+    if (rankByWarm) rankByWarm.checked = userSettings.rankByWarm;
+    if (verifiedOnly) verifiedOnly.checked = userSettings.verifiedOnlyRanking;
+    if (hideFamily) hideFamily.checked = userSettings.hideFamilyFilter;
+}
+
+function applySettingsFromUi() {
+    const mode = document.querySelector('input[name="testMode"]:checked');
+    if (mode) userSettings.testMode = mode.value;
+    userSettings.rankByWarm = $('rankByWarm')?.checked ?? false;
+    userSettings.verifiedOnlyRanking = $('verifiedOnlyRanking')?.checked ?? true;
+    const hideChanged = userSettings.hideFamilyFilter !== ($('hideFamilyFilter')?.checked ?? false);
+    userSettings.hideFamilyFilter = $('hideFamilyFilter')?.checked ?? false;
+    saveSettings();
+    if (hideChanged) rebuildDnsServerList();
+}
 
 // ─── Theme ───────────────────────────────────────────────────────────────────
 
-(function initTheme() {
+function initTheme() {
     const stored = localStorage.getItem('dns-theme');
     if (stored === 'dark' || (!stored && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
         document.documentElement.classList.add('dark');
     } else {
         document.documentElement.classList.remove('dark');
     }
-})();
+}
 
-$('themeToggle').addEventListener('click', () => {
+function bindUiHandlers() {
+    $('themeToggle')?.addEventListener('click', () => {
     const html = document.documentElement;
     html.classList.toggle('dark');
     localStorage.setItem('dns-theme', html.classList.contains('dark') ? 'dark' : 'light');
     if (dnsChart) {
         updateChart();
     }
-});
+    });
+
+    checkButton.addEventListener('click', onRunSpeedTest);
+
+    $('shareBtn')?.addEventListener('click', shareResults);
+
+    exportBtn?.addEventListener('click', exportResultsJson);
+
+    $('settingsBtn')?.addEventListener('click', openDrawer);
+    $('closeDrawer')?.addEventListener('click', closeDrawer);
+    overlay?.addEventListener('click', closeDrawer);
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && overlay && !overlay.classList.contains('hidden')) closeDrawer();
+    });
+
+    document.querySelectorAll('.drawer-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            const target = tab.dataset.drawerTab;
+            document.querySelectorAll('.drawer-tab').forEach(t => {
+                const isActive = t.dataset.drawerTab === target;
+                t.classList.toggle('border-emerald-600', isActive);
+                t.classList.toggle('text-emerald-600', isActive);
+                t.classList.toggle('dark:text-emerald-400', isActive);
+                t.classList.toggle('dark:border-emerald-400', isActive);
+                t.classList.toggle('border-transparent', !isActive);
+                t.classList.toggle('text-slate-400', !isActive);
+            });
+            document.querySelectorAll('.drawer-panel').forEach(p => p.classList.add('hidden'));
+            const panelId = target === 'hosts' ? 'hostsPanel' : target === 'doh' ? 'dohPanel' : 'optionsPanel';
+            $(panelId)?.classList.remove('hidden');
+        });
+    });
+
+    document.querySelectorAll('input[name="testMode"]').forEach(radio => {
+        radio.addEventListener('change', applySettingsFromUi);
+    });
+    ['rankByWarm', 'verifiedOnlyRanking', 'hideFamilyFilter'].forEach(id => {
+        $(id)?.addEventListener('change', applySettingsFromUi);
+    });
+
+    $('addHostname')?.addEventListener('click', () => {
+        const input = $('newWebsite');
+        const host = validateAndExtractHost(input.value.trim());
+        if (!host) {
+            showToast('Enter a valid hostname or URL', 'error');
+        } else if (topWebsites.includes(host)) {
+            showToast('Already in the list', 'error');
+        } else {
+            topWebsites.push(host);
+            saveHosts();
+            renderHostsList();
+            showToast(`Added ${host}`, 'success');
+        }
+        input.value = '';
+    });
+
+    $('newWebsite')?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') $('addHostname')?.click();
+    });
+
+    $('addDoH')?.addEventListener('click', () => {
+        const nameInput = $('newDoHName');
+        const urlInput = $('newDoHUrl');
+        const name = nameInput.value.trim();
+        const url = urlInput.value.trim();
+
+        if (!name) {
+            showToast('Enter a server name', 'error');
+            nameInput.focus();
+            return;
+        }
+        let parsedUrl;
+        try { parsedUrl = new URL(url); } catch { parsedUrl = null; }
+        if (!parsedUrl || parsedUrl.protocol !== 'https:') {
+            showToast('Enter a valid HTTPS URL', 'error');
+            urlInput.focus();
+            return;
+        }
+        if (dnsServers.some(s => s.url === url || s.name === name)) {
+            showToast('Server with that name or URL already exists', 'error');
+            return;
+        }
+        checkServerCapabilities(name, url);
+        nameInput.value = '';
+        urlInput.value = '';
+    });
+
+    $('newDoHUrl')?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') $('addDoH')?.click();
+    });
+
+    document.querySelectorAll('th[data-sortable]').forEach(th => {
+        th.addEventListener('click', () => {
+            const col = parseInt(th.dataset.col);
+            if (sortState.column === col) {
+                sortState.direction = sortState.direction === 'asc' ? 'desc' : 'asc';
+            } else {
+                sortState.column = col;
+                sortState.direction = 'asc';
+            }
+
+            document.querySelectorAll('th[data-sortable] .sort-arrow').forEach(arrow => {
+                arrow.innerHTML = '&#8597;';
+                arrow.classList.remove('text-emerald-600', 'dark:text-emerald-400');
+                arrow.classList.add('text-slate-400');
+            });
+            const activeArrow = th.querySelector('.sort-arrow');
+            activeArrow.innerHTML = sortState.direction === 'asc' ? '&#8593;' : '&#8595;';
+            activeArrow.classList.remove('text-slate-400');
+            activeArrow.classList.add('text-emerald-600', 'dark:text-emerald-400');
+
+            sortTable(col, sortState.direction);
+        });
+    });
+
+    window.addEventListener('resize', () => {
+        if (dnsChart) dnsChart.resize();
+    });
+
+    window.copyServerDetails = copyServerDetails;
+}
 
 // ─── Toast Notifications ─────────────────────────────────────────────────────
 
@@ -123,26 +526,7 @@ function showToast(message, type = 'info') {
     }, 2800);
 }
 
-// ─── Share ────────────────────────────────────────────────────────────────────
-
-$('shareBtn').addEventListener('click', () => {
-    if (navigator.share) {
-        navigator.share({
-            title: 'DNS Speed Test',
-            text: 'Find the fastest DNS server for your location',
-            url: window.location.href
-        }).catch(() => {});
-    } else {
-        navigator.clipboard.writeText(window.location.href).then(() => {
-            showToast('Link copied to clipboard', 'success');
-        }).catch(() => {});
-    }
-});
-
 // ─── Settings Drawer ─────────────────────────────────────────────────────────
-
-const drawer = $('settingsDrawer');
-const overlay = $('drawerOverlay');
 
 function openDrawer() {
     overlay.classList.remove('hidden');
@@ -159,32 +543,6 @@ function closeDrawer() {
     drawer.style.transform = 'translateX(100%)';
     setTimeout(() => overlay.classList.add('hidden'), 200);
 }
-
-$('settingsBtn').addEventListener('click', openDrawer);
-$('closeDrawer').addEventListener('click', closeDrawer);
-overlay.addEventListener('click', closeDrawer);
-
-document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && !overlay.classList.contains('hidden')) closeDrawer();
-});
-
-// Drawer tabs
-document.querySelectorAll('.drawer-tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-        const target = tab.dataset.drawerTab;
-        document.querySelectorAll('.drawer-tab').forEach(t => {
-            const isActive = t.dataset.drawerTab === target;
-            t.classList.toggle('border-emerald-600', isActive);
-            t.classList.toggle('text-emerald-600', isActive);
-            t.classList.toggle('dark:text-emerald-400', isActive);
-            t.classList.toggle('dark:border-emerald-400', isActive);
-            t.classList.toggle('border-transparent', !isActive);
-            t.classList.toggle('text-slate-400', !isActive);
-        });
-        document.querySelectorAll('.drawer-panel').forEach(p => p.classList.add('hidden'));
-        $(target === 'hosts' ? 'hostsPanel' : 'dohPanel').classList.remove('hidden');
-    });
-});
 
 // ─── Hosts Management ────────────────────────────────────────────────────────
 
@@ -204,6 +562,7 @@ function renderHostsList() {
         btn.innerHTML = '<svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>';
         btn.addEventListener('click', () => {
             topWebsites.splice(index, 1);
+            saveHosts();
             renderHostsList();
         });
 
@@ -224,25 +583,6 @@ function validateAndExtractHost(input) {
     }
 }
 
-$('addHostname').addEventListener('click', () => {
-    const input = $('newWebsite');
-    const host = validateAndExtractHost(input.value.trim());
-    if (!host) {
-        showToast('Enter a valid hostname or URL', 'error');
-    } else if (topWebsites.includes(host)) {
-        showToast('Already in the list', 'error');
-    } else {
-        topWebsites.push(host);
-        renderHostsList();
-        showToast(`Added ${host}`, 'success');
-    }
-    input.value = '';
-});
-
-$('newWebsite').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') $('addHostname').click();
-});
-
 // ─── DoH Server Management ──────────────────────────────────────────────────
 
 function renderDoHList() {
@@ -261,7 +601,13 @@ function renderDoHList() {
         btn.className = 'shrink-0 p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-slate-400 hover:text-red-600 dark:hover:text-red-400 transition-colors';
         btn.innerHTML = '<svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>';
         btn.addEventListener('click', () => {
+            const removed = dnsServers[index];
             dnsServers.splice(index, 1);
+            const customIdx = customDnsServers.findIndex(s => s.url === removed.url && s.name === removed.name);
+            if (customIdx >= 0) {
+                customDnsServers.splice(customIdx, 1);
+                saveCustomServers();
+            }
             renderDoHList();
         });
 
@@ -269,37 +615,6 @@ function renderDoHList() {
         list.appendChild(li);
     });
 }
-
-$('addDoH').addEventListener('click', () => {
-    const nameInput = $('newDoHName');
-    const urlInput = $('newDoHUrl');
-    const name = nameInput.value.trim();
-    const url = urlInput.value.trim();
-
-    if (!name) {
-        showToast('Enter a server name', 'error');
-        nameInput.focus();
-        return;
-    }
-    let parsedUrl;
-    try { parsedUrl = new URL(url); } catch { parsedUrl = null; }
-    if (!parsedUrl || parsedUrl.protocol !== 'https:') {
-        showToast('Enter a valid HTTPS URL', 'error');
-        urlInput.focus();
-        return;
-    }
-    if (dnsServers.some(s => s.url === url || s.name === name)) {
-        showToast('Server with that name or URL already exists', 'error');
-        return;
-    }
-    checkServerCapabilities(name, url);
-    nameInput.value = '';
-    urlInput.value = '';
-});
-
-$('newDoHUrl').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') $('addDoH').click();
-});
 
 // ─── DNS Speed Test Logic ────────────────────────────────────────────────────
 
@@ -313,60 +628,115 @@ function setButtonState(state) {
         checkButton.disabled = true;
     } else if (state === 'testing') {
         btnIcon.innerHTML = spinnerSVG;
-        // btnText updated per-server in performDNSTests
+        btnText.textContent = 'Cancel test';
+        checkButton.disabled = false;
+        checkButton.classList.remove('bg-emerald-600', 'hover:bg-emerald-700');
+        checkButton.classList.add('bg-red-600', 'hover:bg-red-700');
     } else if (state === 'done') {
         btnIcon.innerHTML = playSVG;
         btnText.textContent = 'Run Again';
         checkButton.disabled = false;
+        checkButton.classList.remove('bg-red-600', 'hover:bg-red-700');
+        checkButton.classList.add('bg-emerald-600', 'hover:bg-emerald-700');
     } else {
         btnIcon.innerHTML = playSVG;
         btnText.textContent = 'Run Speed Test';
         checkButton.disabled = false;
+        checkButton.classList.remove('bg-red-600', 'hover:bg-red-700');
+        checkButton.classList.add('bg-emerald-600', 'hover:bg-emerald-700');
     }
 }
 
-checkButton.addEventListener('click', async function () {
-    if (testRunning) return;
-    testRunning = true;
+async function onRunSpeedTest() {
+    if (testRunning) {
+        cancelRequested = true;
+        testAbortController?.abort();
+        showToast('Cancelling test…', 'info');
+        return;
+    }
 
-    // Reset state
+    applySettingsFromUi();
+    testRunning = true;
+    cancelRequested = false;
+    testAbortController = new AbortController();
+
     chartData = [];
     chartSection.classList.add('hidden');
     topResults.classList.add('hidden');
+    timingOnlySection?.classList.add('hidden');
+    winnerGuide?.classList.add('hidden');
+    exportBtn?.classList.add('hidden');
+    exportBtn && (exportBtn.disabled = true);
     resultsBody.innerHTML = '';
     tableSection.classList.remove('hidden');
 
-    // Show progress
+    dnsServers.forEach(s => {
+        delete s.speed;
+        delete s.reliability;
+        delete s.individualResults;
+    });
+
     progressContainer.classList.remove('hidden');
     progressFill.style.width = '0%';
-    progressPhase.textContent = 'Warming up connections...';
+    progressPhase.textContent = 'Testing DNS servers...';
     progressCount.textContent = '';
 
-    setButtonState('warmup');
-
-    await warmUpDNSServers();
-
     setButtonState('testing');
-    progressPhase.textContent = 'Testing DNS servers...';
 
-    await performDNSTests();
+    try {
+        await performDNSTests();
+        if (!cancelRequested) {
+            showTopResults();
+            exportBtn?.classList.remove('hidden');
+            exportBtn && (exportBtn.disabled = false);
+        } else {
+            showToast('Test cancelled', 'info');
+        }
+    } catch (err) {
+        if (err.name !== 'AbortError') {
+            console.error('DNS speed test failed:', err);
+            showToast('Test failed. Check the browser console for details.', 'error');
+        }
+    }
 
-    // Hide progress, show final state
     progressContainer.classList.add('hidden');
     setButtonState('done');
     testRunning = false;
+    cancelRequested = false;
+    testAbortController = null;
+}
 
-    // Show top results
-    showTopResults();
-});
+function delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
 
-async function warmUpDNSServers() {
-    const warmUpPromises = dnsServers.map(server =>
-        Promise.all(topWebsites.map(website =>
-            measureDNSSpeed(server.url, website, server.type, server.allowCors)
-        ))
-    );
-    await Promise.all(warmUpPromises);
+async function warmUpServer(server) {
+    const hosts = topWebsites.length
+        ? topWebsites.slice(0, WARMUP_HOST_COUNT)
+        : [WARMUP_HOST];
+    for (const host of hosts) {
+        if (cancelRequested) return;
+        for (let i = 0; i < WARMUP_QUERIES_PER_HOST; i++) {
+            await measureDNSSpeed(server.url, host, server.type, server.allowCors);
+        }
+    }
+}
+
+async function measureHostMedian(server, hostname) {
+    const sampleCount = getSamplesPerHost();
+    const samples = [];
+    for (let i = 0; i < sampleCount; i++) {
+        if (cancelRequested) break;
+        if (i > 0) await delay(SAMPLE_DELAY_MS);
+        samples.push(await measureDNSSpeed(server.url, hostname, server.type, server.allowCors));
+    }
+    const successful = samples.filter(s => typeof s === 'number');
+    const coldMs = typeof samples[0] === 'number' ? samples[0] : null;
+    const warmSamples = samples.slice(1).filter(s => typeof s === 'number');
+    const warmMs = warmSamples.length ? median(warmSamples) : null;
+    const allMedian = successful.length ? median(successful) : null;
+    const speed = userSettings.rankByWarm && warmMs !== null ? warmMs : allMedian;
+    return { speed, coldMs, warmMs, sampleCount, allMedian };
 }
 
 async function performDNSTests() {
@@ -374,28 +744,40 @@ async function performDNSTests() {
     const totalQueries = topWebsites.length;
 
     for (let i = 0; i < dnsServers.length; i++) {
+        if (cancelRequested) break;
         const server = dnsServers[i];
+        ensureServerMetadata(server);
 
-        // Update progress
         btnText.textContent = `Testing ${i + 1}/${totalServers}...`;
         progressCount.textContent = `${i + 1} of ${totalServers}`;
         progressFill.style.width = `${((i + 1) / totalServers) * 100}%`;
 
-        const speedResults = await Promise.all(
-            topWebsites.map(website => measureDNSSpeed(server.url, website, server.type, server.allowCors))
-        );
+        await warmUpServer(server);
+        if (cancelRequested) break;
 
-        server.individualResults = topWebsites.map((website, idx) => ({
-            website,
-            speed: speedResults[idx] !== null ? speedResults[idx] : 'Unavailable'
-        }));
+        const hostResults = await mapPool(topWebsites, PARALLEL_HOST_LIMIT, async (website) => {
+            progressPhase.textContent = `${server.name} — ${website}`;
+            return measureHostMedian(server, website);
+        });
+
+        server.individualResults = topWebsites.map((website, idx) => {
+            const r = hostResults[idx];
+            return {
+                website,
+                speed: r && r.speed !== null ? r.speed : 'Unavailable',
+                coldMs: r?.coldMs ?? null,
+                warmMs: r?.warmMs ?? null,
+                sampleCount: r?.sampleCount ?? getSamplesPerHost()
+            };
+        });
+
+        const speedResults = hostResults.map(r => (r && r.speed !== null) ? r.speed : null);
 
         if (totalQueries === 0) {
-            server.speed = { min: 'Unavailable', median: 'Unavailable', max: 'Unavailable', avg: 'Unavailable' };
-            server.reliability = { status: 'no-data', successCount: 0, failureCount: 0, totalQueries: 0, message: 'No hostnames configured for testing.' };
+            server.speed = { min: 'Unavailable', median: 'Unavailable', max: 'Unavailable', avg: 'Unavailable', jitter: 'Unavailable' };
+            server.reliability = { status: 'no-data', successCount: 0, failureCount: 0, totalQueries: 0, successRate: 0, message: 'No hostnames configured for testing.' };
         } else {
-            const penalizedResults = speedResults.map(s => typeof s === 'number' ? s : TIMEOUT_PENALTY_MS);
-            server.speed = calculateSpeedStats(penalizedResults);
+            server.speed = calculateSpeedStats(speedResults);
             server.reliability = buildReliabilityProfile(speedResults, totalQueries);
         }
 
@@ -403,53 +785,25 @@ async function performDNSTests() {
     }
 }
 
-function calculateSpeedStats(results) {
-    if (!results.length) {
-        return { min: 'Unavailable', median: 'Unavailable', max: 'Unavailable', avg: 'Unavailable' };
-    }
-    const sorted = [...results].sort((a, b) => a - b);
-    const sum = sorted.reduce((acc, v) => acc + v, 0);
-    const avg = sum / sorted.length;
-    const mid = Math.floor(sorted.length / 2);
-    const median = sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
-    return { min: sorted[0], median, max: sorted[sorted.length - 1], avg };
-}
-
-function buildReliabilityProfile(speedResults, totalQueries) {
-    if (totalQueries === 0) {
-        return { status: 'no-data', successCount: 0, failureCount: 0, totalQueries: 0, message: 'No hostnames configured for testing.' };
-    }
-    const successCount = speedResults.filter(s => typeof s === 'number').length;
-    const failureCount = totalQueries - successCount;
-
-    let status, message;
-    if (successCount === 0) {
-        status = 'failed';
-        message = `All queries failed. Each timeout counts as ${TIMEOUT_PENALTY_MS}ms penalty.`;
-    } else if (failureCount > 0) {
-        status = 'partial';
-        message = `${failureCount} of ${totalQueries} queries timed out. Failed runs scored as ${TIMEOUT_PENALTY_MS}ms.`;
-    } else {
-        status = 'healthy';
-        message = 'All queries succeeded.';
-    }
-    return { status, successCount, failureCount, totalQueries, message };
-}
-
 // ─── DNS Query Logic (preserved exactly) ─────────────────────────────────────
 
 async function measureDNSSpeed(dohUrl, hostname, serverType = 'post', allowCors = false) {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    const timeoutMs = getQueryTimeoutMs();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    const parentSignal = testAbortController?.signal;
+    const onParentAbort = () => controller.abort();
+    parentSignal?.addEventListener('abort', onParentAbort);
 
     try {
         const dnsQuery = buildDNSQuery(hostname);
         const startTime = performance.now();
         let response;
+        let usesJsonApi = false;
 
         if (serverType === 'get') {
             const urlWithParam = new URL(dohUrl);
-            const usesJsonApi = urlWithParam.pathname.includes('/resolve');
+            usesJsonApi = urlWithParam.pathname.includes('/resolve');
             let fetchOptions = { method: 'GET', signal: controller.signal };
 
             if (usesJsonApi) {
@@ -491,15 +845,31 @@ async function measureDNSSpeed(dohUrl, hostname, serverType = 'post', allowCors 
 
         clearTimeout(timeoutId);
         if (allowCors && !response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-        return performance.now() - startTime;
+
+        const elapsed = performance.now() - startTime;
+
+        if (allowCors) {
+            if (usesJsonApi) {
+                const data = await response.json();
+                if (!validateDnsJson(data)) return null;
+            } else {
+                const buffer = await response.arrayBuffer();
+                if (!validateDnsWireResponse(buffer)) return null;
+            }
+        }
+
+        return elapsed;
     } catch (error) {
         clearTimeout(timeoutId);
+        parentSignal?.removeEventListener('abort', onParentAbort);
         if (error.name === 'AbortError' || error.message === 'NS_BINDING_ABORTED') {
             console.error('Request timed out or was aborted');
         } else {
             console.error('Error during DNS resolution:', error);
         }
         return null;
+    } finally {
+        parentSignal?.removeEventListener('abort', onParentAbort);
     }
 }
 
@@ -558,7 +928,7 @@ function updateResult(server) {
     let detailsRow;
 
     const fmt = (v) => typeof v === 'number' ? v.toFixed(2) : 'N/A';
-    const badgeHTML = reliabilityBadge(server.reliability);
+    const badgeHTML = reliabilityBadge(server.reliability) + confidenceBadge(server);
 
     if (!row) {
         row = document.createElement('tr');
@@ -595,19 +965,23 @@ function updateResult(server) {
             </div>
         </td>
         <td class="py-3 px-4 text-right tabnum text-slate-700 dark:text-slate-300">${fmt(server.speed.min)}</td>
-        <td class="py-3 px-4 text-right tabnum text-slate-700 dark:text-slate-300">${fmt(server.speed.median)}</td>
-        <td class="py-3 px-4 text-right tabnum font-medium text-slate-900 dark:text-slate-100">${fmt(server.speed.avg)}</td>
+        <td class="py-3 px-4 text-right tabnum font-medium text-slate-900 dark:text-slate-100">${fmt(server.speed.median)}</td>
+        <td class="py-3 px-4 text-right tabnum text-slate-700 dark:text-slate-300">${fmt(server.speed.avg)}</td>
         <td class="py-3 px-4 text-right tabnum text-slate-700 dark:text-slate-300">${fmt(server.speed.max)}</td>
     `;
 
     const reliabilityMsg = server.reliability && server.reliability.message
-        ? `<p class="text-xs text-slate-500 dark:text-slate-400 mb-3">${server.reliability.message}</p>` : '';
+        ? `<p class="text-xs text-slate-500 dark:text-slate-400 mb-2">${server.reliability.message}</p>` : '';
+    const jitterMsg = typeof server.speed.jitter === 'number'
+        ? `<p class="text-xs text-slate-500 dark:text-slate-400 mb-3">Jitter (max−min across host medians): ${server.speed.jitter.toFixed(2)} ms · ${getSamplesPerHost()} runs per host, median shown</p>`
+        : `<p class="text-xs text-slate-500 dark:text-slate-400 mb-3">${getSamplesPerHost()} runs per host, median shown · ${server.transport || ''}</p>`;
 
     const copyData = `${server.name}\nURL: ${server.url}\nIPs: ${ipsText}`;
 
     detailsRow.innerHTML = `
         <td colspan="5" class="px-4 py-3 bg-slate-50/50 dark:bg-slate-800/20 border-b border-slate-100 dark:border-slate-800/50">
             ${reliabilityMsg}
+            ${jitterMsg}
             <div class="flex items-center gap-2 mb-3">
                 <code class="text-xs text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded truncate">${server.url}</code>
                 <button class="copy-btn shrink-0 px-2 py-1 text-xs text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded transition-colors"
@@ -617,12 +991,14 @@ function updateResult(server) {
             </div>
             <div class="text-xs text-slate-500 dark:text-slate-400 font-medium mb-1.5">Per-hostname breakdown:</div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-0.5 text-xs">
-                ${(server.individualResults || []).map(r =>
-                    `<div class="flex justify-between py-0.5">
-                        <span class="text-slate-600 dark:text-slate-400">${r.website}</span>
-                        <span class="tabnum ${typeof r.speed === 'number' ? 'text-slate-700 dark:text-slate-300' : 'text-slate-400'}">${typeof r.speed === 'number' ? r.speed.toFixed(2) + ' ms' : 'N/A'}</span>
-                    </div>`
-                ).join('')}
+                ${(server.individualResults || []).map(r => {
+                    const speedNum = typeof r.speed === 'number' ? r.speed : null;
+                    const speedText = speedNum !== null ? speedNum.toFixed(2) + ' ms' : 'N/A';
+                    const coldWarm = (typeof r.coldMs === 'number' || typeof r.warmMs === 'number')
+                        ? ` <span class="text-[10px] text-slate-400">(cold ${typeof r.coldMs === 'number' ? r.coldMs.toFixed(0) : '-'}, warm ${typeof r.warmMs === 'number' ? r.warmMs.toFixed(0) : '-'})</span>`
+                        : '';
+                    return `<div class="flex justify-between py-0.5 gap-2"><span class="text-slate-600 dark:text-slate-400 truncate">${r.website}</span><span class="tabnum shrink-0 ${speedNum !== null ? 'text-slate-700 dark:text-slate-300' : 'text-slate-400'}">${speedText}${coldWarm}</span></div>`;
+                }).join('')}
             </div>
         </td>
     `;
@@ -643,6 +1019,13 @@ function reliabilityBadge(reliability) {
     return `<span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold ${c.cls}" title="${(reliability.message || '').replace(/"/g, '&quot;')}">${c.label}${ratio}</span>`;
 }
 
+function confidenceBadge(server) {
+    if (server.measurementConfidence === 'verified') {
+        return `<span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300" title="DNS response validated via CORS">Verified</span>`;
+    }
+    return `<span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400" title="Round-trip timing only; response body cannot be read (no-CORS)">Timing only</span>`;
+}
+
 function copyServerDetails(btn, text) {
     navigator.clipboard.writeText(text).then(() => {
         const original = btn.textContent;
@@ -660,50 +1043,152 @@ function copyServerDetails(btn, text) {
 // ─── Top Results (post-test ranking) ─────────────────────────────────────────
 
 function showTopResults() {
+    const verifiedOnly = userSettings.verifiedOnlyRanking;
     const ranked = dnsServers
-        .filter(s => s.speed && typeof s.speed.avg === 'number' && s.reliability && s.reliability.successCount > 0)
-        .sort((a, b) => a.speed.avg - b.speed.avg)
+        .filter(s => isEligibleForRanking(s, { verifiedOnly }))
+        .sort((a, b) => a.speed.median - b.speed.median)
         .slice(0, 3);
 
-    if (ranked.length === 0) return;
+    const timingOnlyRanked = dnsServers
+        .filter(s => isEligibleForRanking(s, { verifiedOnly: false }) && s.measurementConfidence === 'timing-only')
+        .filter(s => !ranked.includes(s))
+        .sort((a, b) => a.speed.median - b.speed.median)
+        .slice(0, 3);
 
-    rankingList.innerHTML = ranked.map((server, i) => {
-        const medal = ['text-amber-500', 'text-slate-400', 'text-amber-700'][i] || 'text-slate-400';
-        return `
-            <li class="flex items-center gap-4 px-4 py-3">
-                <span class="text-lg font-bold tabnum ${medal} w-6 text-right">${i + 1}</span>
-                <div class="flex-1 min-w-0">
-                    <span class="font-medium text-slate-800 dark:text-slate-200">${server.name}</span>
-                    ${server.ips && server.ips.length ? `<span class="text-xs text-slate-400 ml-2 tabnum">${server.ips[0]}</span>` : ''}
-                </div>
-                <div class="text-right shrink-0">
-                    <span class="font-semibold tabnum text-slate-900 dark:text-slate-100">${server.speed.avg.toFixed(1)}</span>
-                    <span class="text-xs text-slate-400 ml-0.5">ms</span>
-                </div>
-            </li>
-        `;
-    }).join('');
+    if (ranked.length === 0 && timingOnlyRanked.length === 0) return;
+
+    rankingList.innerHTML = ranked.length ? ranked.map((server, i) => renderRankingItem(server, i)).join('') :
+        '<li class="px-4 py-3 text-sm text-slate-500">No verified resolvers met the 80% success threshold. See timing-only results below.</li>';
 
     topResults.classList.remove('hidden');
     topResults.classList.add('fade-up');
 
-    // Color table rows by performance
+    if (timingOnlyRanked.length) {
+        timingOnlyList.innerHTML = timingOnlyRanked.map((server, i) => renderRankingItem(server, i, true)).join('');
+        timingOnlySection?.classList.remove('hidden');
+    } else {
+        timingOnlySection?.classList.add('hidden');
+    }
+
+    const prevSnapshot = lastTestSnapshot;
+    const winner = ranked[0];
+    if (winner && winnerGuide) {
+        const delta = formatDeltaVsLast(winner, prevSnapshot);
+        winnerGuide.innerHTML = `
+            <p class="font-medium text-slate-800 dark:text-slate-200 mb-2">Use ${winner.name}</p>
+            <p class="mb-2 tabnum text-xs"><code class="bg-slate-100 dark:bg-slate-800 px-1 rounded">${winner.url}</code></p>
+            ${winner.ips?.length ? `<p class="text-xs mb-2">IPs: <span class="tabnum">${winner.ips.join(', ')}</span></p>` : ''}
+            <p class="text-xs mb-2">${winner.transport || ''} · ${getSamplesPerHost()} runs/host${userSettings.rankByWarm ? ' · warm ranking' : ''}</p>
+            ${delta ? `<p class="text-xs text-emerald-700 dark:text-emerald-400 mb-2">${delta}</p>` : ''}
+            <p class="text-xs">Configure DoH:
+              <a class="underline" href="${SETUP_LINKS.windows}" target="_blank" rel="noopener">Windows</a> ·
+              <a class="underline" href="${SETUP_LINKS.macos}" target="_blank" rel="noopener">macOS</a> ·
+              <a class="underline" href="${SETUP_LINKS.android}" target="_blank" rel="noopener">Android</a>
+            </p>`;
+        winnerGuide.classList.remove('hidden');
+    }
+
+    saveLastResults({
+        at: new Date().toISOString(),
+        mode: userSettings.testMode,
+        top: ranked.map(s => ({ name: s.name, median: s.speed.median, url: s.url }))
+    });
+
     colorTableRows();
+    applyDefaultMedianSort();
+}
+
+function renderRankingItem(server, i, timingOnly = false) {
+    const medal = ['text-amber-500', 'text-slate-400', 'text-amber-700'][i] || 'text-slate-400';
+    return `<li class="flex items-center gap-4 px-4 py-3">
+        <span class="text-lg font-bold tabnum ${medal} w-6 text-right">${i + 1}</span>
+        <div class="flex-1 min-w-0">
+            <span class="font-medium text-slate-800 dark:text-slate-200">${server.name}</span>
+            ${timingOnly ? '<span class="text-[10px] text-amber-600 ml-1">timing only</span>' : ''}
+            ${server.ips?.length ? `<span class="text-xs text-slate-400 ml-2 tabnum">${server.ips[0]}</span>` : ''}
+        </div>
+        <div class="text-right shrink-0">
+            <span class="font-semibold tabnum">${server.speed.median.toFixed(1)}</span><span class="text-xs text-slate-400 ml-0.5">ms</span>
+        </div>
+    </li>`;
+}
+
+function formatDeltaVsLast(winner, prevSnapshot) {
+    if (!prevSnapshot?.top?.[0]) return null;
+    if (prevSnapshot.top[0].name !== winner.name) {
+        return `Previous #1: ${prevSnapshot.top[0].name} (${prevSnapshot.top[0].median.toFixed(1)} ms).`;
+    }
+    const diff = winner.speed.median - prevSnapshot.top[0].median;
+    if (Math.abs(diff) < 0.5) return 'About the same as your last test.';
+    return diff < 0 ? `${Math.abs(diff).toFixed(1)} ms faster than last run.` : `${diff.toFixed(1)} ms slower than last run.`;
+}
+
+function buildResultsExport() {
+    return {
+        exportedAt: new Date().toISOString(),
+        testMode: userSettings.testMode,
+        hosts: [...topWebsites],
+        servers: dnsServers.map(s => ({
+            name: s.name, url: s.url, ips: s.ips, transport: s.transport,
+            confidence: s.measurementConfidence, speed: s.speed,
+            reliability: s.reliability, hosts: s.individualResults
+        }))
+    };
+}
+
+function exportResultsJson() {
+    const blob = new Blob([JSON.stringify(buildResultsExport(), null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `doh-speedtest-${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('Results exported', 'success');
+}
+
+function shareResults() {
+    const top = dnsServers.filter(s => isEligibleForRanking(s, { verifiedOnly: userSettings.verifiedOnlyRanking }))
+        .sort((a, b) => a.speed.median - b.speed.median)[0];
+    const text = top ? `Fastest DoH: ${top.name} (${top.speed.median.toFixed(1)} ms median) — dnsspeedtest.online` : 'DoH speed test — dnsspeedtest.online';
+    if (navigator.share) {
+        navigator.share({ title: 'DNS Speed Test', text, url: window.location.href }).catch(() => {});
+    } else {
+        navigator.clipboard.writeText(`${text}\n${window.location.href}`).then(() => showToast('Copied', 'success'));
+    }
+}
+
+function applyDefaultMedianSort() {
+    sortState.column = 2;
+    sortState.direction = 'asc';
+    document.querySelectorAll('th[data-sortable] .sort-arrow').forEach(arrow => {
+        arrow.innerHTML = '&#8597;';
+        arrow.classList.remove('text-emerald-600', 'dark:text-emerald-400');
+        arrow.classList.add('text-slate-400');
+    });
+    const medianTh = document.querySelector('th[data-sortable][data-col="2"]');
+    if (medianTh) {
+        const activeArrow = medianTh.querySelector('.sort-arrow');
+        activeArrow.innerHTML = '&#8593;';
+        activeArrow.classList.remove('text-slate-400');
+        activeArrow.classList.add('text-emerald-600', 'dark:text-emerald-400');
+    }
+    sortTable(2, 'asc');
 }
 
 function colorTableRows() {
-    const servers = dnsServers.filter(s => s.speed && typeof s.speed.avg === 'number');
+    const servers = dnsServers.filter(s => s.speed && typeof s.speed.median === 'number');
     if (servers.length === 0) return;
 
-    const avgs = servers.map(s => s.speed.avg);
-    const minAvg = Math.min(...avgs);
-    const maxAvg = Math.max(...avgs);
-    const range = maxAvg - minAvg || 1;
+    const medians = servers.map(s => s.speed.median);
+    const minMedian = Math.min(...medians);
+    const maxMedian = Math.max(...medians);
+    const range = maxMedian - minMedian || 1;
 
     servers.forEach(server => {
         const row = document.querySelector(`tr[data-server="${server.name}"]`);
         if (!row) return;
-        const norm = (server.speed.avg - minAvg) / range;
+        const norm = (server.speed.median - minMedian) / range;
         if (norm <= 0.33) row.style.borderLeftColor = '#22c55e';
         else if (norm <= 0.66) row.style.borderLeftColor = '#eab308';
         else row.style.borderLeftColor = '#ef4444';
@@ -715,31 +1200,6 @@ function colorTableRows() {
 }
 
 // ─── Table Sorting ───────────────────────────────────────────────────────────
-
-document.querySelectorAll('th[data-sortable]').forEach(th => {
-    th.addEventListener('click', () => {
-        const col = parseInt(th.dataset.col);
-        if (sortState.column === col) {
-            sortState.direction = sortState.direction === 'asc' ? 'desc' : 'asc';
-        } else {
-            sortState.column = col;
-            sortState.direction = 'asc';
-        }
-
-        // Update arrows
-        document.querySelectorAll('th[data-sortable] .sort-arrow').forEach(arrow => {
-            arrow.innerHTML = '&#8597;';
-            arrow.classList.remove('text-emerald-600', 'dark:text-emerald-400');
-            arrow.classList.add('text-slate-400');
-        });
-        const activeArrow = th.querySelector('.sort-arrow');
-        activeArrow.innerHTML = sortState.direction === 'asc' ? '&#8593;' : '&#8595;';
-        activeArrow.classList.remove('text-slate-400');
-        activeArrow.classList.add('text-emerald-600', 'dark:text-emerald-400');
-
-        sortTable(col, sortState.direction);
-    });
-});
 
 function sortTable(columnIndex, direction) {
     const rows = Array.from(resultsBody.querySelectorAll('tr'));
@@ -774,10 +1234,10 @@ function sortTable(columnIndex, direction) {
 // ─── Chart ───────────────────────────────────────────────────────────────────
 
 function updateChartWithData(server) {
-    const hasData = server.reliability ? server.reliability.successCount > 0 : server.speed.avg !== 'Unavailable';
+    const hasData = server.reliability ? server.reliability.successCount > 0 : server.speed.median !== 'Unavailable';
     const info = {
         name: server.name,
-        avg: hasData && typeof server.speed.avg === 'number' ? server.speed.avg : null,
+        median: hasData && typeof server.speed.median === 'number' ? server.speed.median : null,
         min: hasData && typeof server.speed.min === 'number' ? server.speed.min : null,
         max: hasData && typeof server.speed.max === 'number' ? server.speed.max : null
     };
@@ -794,7 +1254,7 @@ function updateChart() {
     const ctx = canvas.getContext('2d');
     const isDark = document.documentElement.classList.contains('dark');
 
-    const validData = chartData.filter(d => d.avg !== null).sort((a, b) => a.avg - b.avg);
+    const validData = chartData.filter(d => d.median !== null).sort((a, b) => a.median - b.median);
     if (validData.length === 0) return;
 
     // Dynamic height
@@ -805,7 +1265,7 @@ function updateChart() {
 
     if (dnsChart) dnsChart.destroy();
 
-    const minVal = Math.min(...validData.map(d => d.avg));
+    const minVal = Math.min(...validData.map(d => d.median));
     const scaleMin = Math.max(0, minVal * 0.7);
 
     const textColor = isDark ? '#94a3b8' : '#64748b';
@@ -816,10 +1276,10 @@ function updateChart() {
         data: {
             labels: validData.map(d => d.name),
             datasets: [{
-                label: 'Avg Response Time (ms)',
-                data: validData.map(d => d.avg),
-                backgroundColor: validData.map(d => getBarColor(d.avg, validData)),
-                borderColor: validData.map(d => getBarColor(d.avg, validData, true)),
+                label: 'Median Response Time (ms)',
+                data: validData.map(d => d.median),
+                backgroundColor: validData.map(d => getBarColor(d.median, validData)),
+                borderColor: validData.map(d => getBarColor(d.median, validData, true)),
                 borderWidth: 1,
                 borderRadius: 3
             }]
@@ -843,7 +1303,7 @@ function updateChart() {
                         label: function (context) {
                             const s = validData[context.dataIndex];
                             return [
-                                `Avg: ${s.avg.toFixed(2)} ms`,
+                                `Median: ${s.median.toFixed(2)} ms`,
                                 `Min: ${s.min?.toFixed(2) || 'N/A'} ms`,
                                 `Max: ${s.max?.toFixed(2) || 'N/A'} ms`
                             ];
@@ -874,7 +1334,7 @@ function updateChart() {
 function getBarColor(responseTime, allData, border = false) {
     if (!allData || allData.length === 0) return border ? '#22c55e' : '#22c55e80';
 
-    const times = allData.map(d => d.avg).filter(t => t !== null);
+    const times = allData.map(d => d.median).filter(t => t !== null);
     const min = Math.min(...times);
     const max = Math.max(...times);
     if (min === max) return border ? '#22c55e' : '#22c55e80';
@@ -958,7 +1418,11 @@ async function checkServerCapabilities(name, url) {
     else if (getNoCors.success) { chosenType = 'get'; allowCors = false; }
 
     if (chosenType) {
-        dnsServers.push({ name, url, type: chosenType, allowCors, ips: [] });
+        const entry = { name, url, type: chosenType, allowCors, ips: [] };
+        ensureServerMetadata(entry);
+        customDnsServers.push(entry);
+        saveCustomServers();
+        rebuildDnsServerList();
         renderDoHList();
         showToast(`${name} added (${chosenType.toUpperCase()}, ${allowCors ? 'CORS' : 'no-CORS'})`, 'success');
     } else {
@@ -966,8 +1430,8 @@ async function checkServerCapabilities(name, url) {
     }
 }
 
-// ─── Resize Handler ──────────────────────────────────────────────────────────
-
-window.addEventListener('resize', () => {
-    if (dnsChart) dnsChart.resize();
-});
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initApp);
+} else {
+    initApp();
+}

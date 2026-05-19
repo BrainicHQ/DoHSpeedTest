@@ -84,7 +84,7 @@
       }
     }
   </script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js" crossorigin="anonymous"></script>
 
   <style>
     *, *::before, *::after { box-sizing: border-box; }
@@ -191,16 +191,23 @@
     <!-- Hero -->
     <section class="pt-16 pb-8 md:pt-24 md:pb-12 text-center px-4">
       <h1 id="heroTitle" class="text-3xl md:text-5xl font-bold tracking-tight max-w-xl mx-auto leading-tight">
-        Find your fastest DNS
+        Find your fastest DoH resolver
       </h1>
-      <p class="mt-3 text-base md:text-lg text-slate-500 dark:text-slate-400 max-w-md mx-auto leading-relaxed">
-        Real-time DoH benchmark from your browser.<br class="hidden sm:block"> No install. No data collected.
+      <p class="mt-3 text-base md:text-lg text-slate-500 dark:text-slate-400 max-w-lg mx-auto leading-relaxed">
+        Benchmark DNS-over-HTTPS from your browser — not router or ISP DNS (UDP port&nbsp;53).<br class="hidden sm:block"> No install. No data collected.
       </p>
-      <div class="mt-8">
+      <p id="heroNote" class="mt-2 text-xs text-slate-400 dark:text-slate-500 max-w-md mx-auto">
+        Classic UDP DNS is often faster; DoH adds TLS/HTTP overhead but improves privacy in the browser stack.
+      </p>
+      <div class="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
         <button id="checkButton"
                 class="inline-flex items-center gap-2.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-medium px-8 py-3 rounded-lg transition-colors text-base shadow-sm shadow-emerald-600/20 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-emerald-600">
           <span id="btnIcon"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span>
           <span id="btnText">Run Speed Test</span>
+        </button>
+        <button id="exportBtn" type="button" disabled
+                class="hidden inline-flex items-center gap-2 px-4 py-3 text-sm font-medium rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+          Export results
         </button>
       </div>
 
@@ -220,9 +227,19 @@
     <section id="topResults" class="hidden max-w-2xl mx-auto px-4 pb-6">
       <div class="border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden">
         <div class="px-4 py-2.5 bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-800">
-          <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Fastest for your location</h2>
+          <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Fastest DoH (median, &ge;80% success)</h2>
         </div>
         <ol id="rankingList" class="divide-y divide-slate-100 dark:divide-slate-800/50"></ol>
+      </div>
+      <div id="winnerGuide" class="hidden mt-4 border border-emerald-200 dark:border-emerald-900/50 rounded-lg p-4 bg-emerald-50/50 dark:bg-emerald-950/20 text-sm text-slate-600 dark:text-slate-400"></div>
+    </section>
+
+    <section id="timingOnlySection" class="hidden max-w-2xl mx-auto px-4 pb-4">
+      <div class="border border-amber-200 dark:border-amber-900/40 rounded-lg overflow-hidden">
+        <div class="px-4 py-2.5 bg-amber-50 dark:bg-amber-950/30 border-b border-amber-200 dark:border-amber-900/40">
+          <h2 class="text-xs font-semibold uppercase tracking-wider text-amber-800 dark:text-amber-300">Timing only (not verified)</h2>
+        </div>
+        <ol id="timingOnlyList" class="divide-y divide-slate-100 dark:divide-slate-800/50 text-sm"></ol>
       </div>
     </section>
 
@@ -247,7 +264,7 @@
                   <span class="inline-flex items-center gap-1">Min<span class="sort-arrow text-slate-400">&#8597;</span></span>
                 </th>
                 <th data-sortable data-col="2" class="py-3 px-4 text-right font-semibold cursor-pointer">
-                  <span class="inline-flex items-center gap-1">Median<span class="sort-arrow text-slate-400">&#8597;</span></span>
+                  <span class="inline-flex items-center gap-1">Median <span class="normal-case font-normal text-slate-400">(rank)</span><span class="sort-arrow text-slate-400">&#8597;</span></span>
                 </th>
                 <th data-sortable data-col="3" class="py-3 px-4 text-right font-semibold cursor-pointer">
                   <span class="inline-flex items-center gap-1">Avg<span class="sort-arrow text-slate-400">&#8597;</span></span>
@@ -261,7 +278,7 @@
           </table>
         </div>
       </div>
-      <p class="mt-2 text-xs text-slate-400 dark:text-slate-500 text-center">Click any row to see per-hostname breakdown. All times in ms.</p>
+      <p class="mt-2 text-xs text-slate-400 dark:text-slate-500 text-center">Click any row for per-host breakdown. Ranking uses median; timeouts affect reliability only. Change sample count in Settings → Options.</p>
     </section>
 
     <!-- Methodology / Disclaimer -->
@@ -279,22 +296,31 @@
             queries from your local environment. No server-side code is involved, and no personal data is collected.
           </p>
           <p>
-            <strong class="text-slate-700 dark:text-slate-300">Warm-Up Phase:</strong> Before timing each DNS server, the script primes connections and caches to
-            minimize TCP/TLS handshake overhead. This more fairly represents typical DoH performance once connections are established.
+            This measures <strong class="text-slate-700 dark:text-slate-300">DNS-over-HTTPS (DoH)</strong> from your browser, not system DNS (UDP port 53).
+            Times include HTTP/TLS overhead and are best used to compare DoH resolvers under your network conditions.
           </p>
           <p>
-            <strong class="text-slate-700 dark:text-slate-300">Measurement:</strong> We use <code class="text-xs bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded">fetch</code> and
-            <code class="text-xs bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded">performance.now()</code> to measure full DoH round-trip times. Results include HTTP/TLS
-            overhead, so they may be higher than raw DNS queries from other tools.
+            <strong class="text-slate-700 dark:text-slate-300">Warm-up:</strong> Before each resolver, two priming queries run (not scored) to reduce cold TCP/TLS effects.
           </p>
           <p>
-            <strong class="text-slate-700 dark:text-slate-300">Timeouts:</strong> Each query times out after 5 seconds.
-            Unresponsive servers appear as <em>Unavailable</em> and receive a 5000ms penalty to prevent skewing averages.
+            <strong class="text-slate-700 dark:text-slate-300">Measurement:</strong> Choose Quick (1), Standard (3), or Accurate (5) runs per host in Settings.
+            We take the <strong class="text-slate-700 dark:text-slate-300">median</strong> per host (optionally warm-only for ranking), then aggregate min/median/avg/max.
+            Top 3 verified resolvers need <strong class="text-slate-700 dark:text-slate-300">80% successful hostnames</strong>.
           </p>
           <p>
-            <strong class="text-slate-700 dark:text-slate-300">Variability:</strong> Network latency, bandwidth, and browser load cause variability.
-            Run multiple tests at different times for a broader picture. Results are best used as a
-            <strong class="text-slate-700 dark:text-slate-300">relative comparison</strong> among servers under your specific circumstances.
+            <strong class="text-slate-700 dark:text-slate-300">Fairness:</strong> Up to 4 hostnames are tested in parallel per resolver; warm-up hits the first few hosts before scoring.
+          </p>
+          <p>
+            <strong class="text-slate-700 dark:text-slate-300">Validation:</strong> Resolvers with CORS (<em>Verified</em>) must return a valid DNS answer.
+            <em>Timing only</em> resolvers (no-CORS) report round-trip time only — the response body cannot be read in the browser.
+          </p>
+          <p>
+            <strong class="text-slate-700 dark:text-slate-300">Timeouts:</strong> Failed queries are marked unavailable and excluded from speed scores;
+            they only lower reliability. They are <em>not</em> counted as 5000&nbsp;ms in rankings.
+          </p>
+          <p>
+            <strong class="text-slate-700 dark:text-slate-300">Variability:</strong> Run 2–3 tests at different times. Results are a
+            <strong class="text-slate-700 dark:text-slate-300">relative comparison</strong> among DoH servers from your location.
           </p>
         </div>
       </details>
@@ -322,7 +348,11 @@
       </button>
       <button data-drawer-tab="doh"
               class="drawer-tab flex-1 py-2.5 text-xs font-semibold uppercase tracking-wider text-center border-b-2 transition-colors border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
-        DoH Servers
+        DoH
+      </button>
+      <button data-drawer-tab="options"
+              class="drawer-tab flex-1 py-2.5 text-xs font-semibold uppercase tracking-wider text-center border-b-2 transition-colors border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
+        Options
       </button>
     </div>
 
@@ -369,6 +399,23 @@
           </button>
         </div>
       </div>
+    </div>
+
+    <div id="optionsPanel" class="drawer-panel hidden flex-1 flex flex-col min-h-0 overflow-y-auto drawer-scroll px-4 py-4 space-y-5 text-sm">
+      <fieldset>
+        <legend class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">Test mode</legend>
+        <div class="space-y-2">
+          <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="testMode" value="quick" class="text-emerald-600"> Quick (1 run/host)</label>
+          <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="testMode" value="standard" class="text-emerald-600" checked> Standard (3 runs/host)</label>
+          <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="testMode" value="accurate" class="text-emerald-600"> Accurate (5 runs/host)</label>
+        </div>
+      </fieldset>
+      <fieldset class="space-y-2">
+        <legend class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">Ranking</legend>
+        <label class="flex items-start gap-2 cursor-pointer"><input type="checkbox" id="rankByWarm" class="mt-0.5 text-emerald-600 rounded"> <span>Rank by warm median only (samples 2–3)</span></label>
+        <label class="flex items-start gap-2 cursor-pointer"><input type="checkbox" id="verifiedOnlyRanking" class="mt-0.5 text-emerald-600 rounded" checked> <span>Top 3: verified (CORS) resolvers only</span></label>
+        <label class="flex items-start gap-2 cursor-pointer"><input type="checkbox" id="hideFamilyFilter" class="mt-0.5 text-emerald-600 rounded"> <span>Hide family-filter resolvers</span></label>
+      </fieldset>
     </div>
   </aside>
 

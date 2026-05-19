@@ -1,0 +1,15 @@
+{
+  "name": "doh-speed-test",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "check:stats": "node scripts/check-stats-sync.js"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.51.0",
+    "vitest": "^3.0.5"
+  }
+}

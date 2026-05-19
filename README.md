@@ -15,12 +15,12 @@ solution for achieving a faster and more reliable internet connection by testing
 
 ## 💡 Features
 
-- **Real-time DNS Testing**: Pinpoints the fastest DNS server based on real-time data for your location.
-- **Customizable Tests**: Tailor your testing by adding or removing websites.
-- **Detailed Analytics**: Gain deep insights with min, median, and max response times.
-- **Interactive Data Visualization**: Charts and graphs for clear, engaging data representation.
-- **Adaptive Design**: Seamless experience across different devices.
-- **Absolutely Free**: Full access to all features without any cost.
+- **Real-time DoH benchmarking**: Compare DNS-over-HTTPS resolvers from your browser (not UDP port 53).
+- **Test modes**: Quick (1 run/host), Standard (3), or Accurate (5) samples per hostname.
+- **Median ranking**: Robust scores with reliability separate from speed; optional warm-only ranking.
+- **Verified vs timing-only**: CORS resolvers validate DNS answers; others show timing with clear labels.
+- **Custom hosts & DoH servers**: Persisted in your browser; export results as JSON.
+- **Cancel, export, share**: Stop long runs; share your top resolver with median latency.
 
 ## 🔧 Technical Insights
 
