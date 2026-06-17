@@ -27,6 +27,8 @@ const topWebsites = [
 ];
 
 const TIMEOUT_PENALTY_MS = 5000;
+const DNS_MESSAGE_HEADERS = { 'Accept': 'application/dns-message' };
+const DNS_JSON_HEADERS = { 'Accept': 'application/dns-json' };
 
 const dnsServers = [
     { name: "AdGuard", url: "https://dns.adguard-dns.com/dns-query", ips: ["94.140.14.14", "94.140.15.15"] },
@@ -456,18 +458,12 @@ async function measureDNSSpeed(dohUrl, hostname, serverType = 'post', allowCors 
                 urlWithParam.searchParams.set('name', hostname);
                 urlWithParam.searchParams.set('type', 'A');
                 urlWithParam.searchParams.set('nocache', Date.now());
-                if (allowCors) {
-                    fetchOptions.mode = 'cors';
-                    fetchOptions.headers = { 'Accept': 'application/dns-json' };
-                } else {
-                    fetchOptions.mode = 'no-cors';
-                }
+                fetchOptions.mode = allowCors ? 'cors' : 'no-cors';
+                fetchOptions.headers = DNS_JSON_HEADERS;
             } else {
                 urlWithParam.searchParams.set('dns', encodeDnsQueryBase64Url(dnsQuery));
                 fetchOptions.mode = allowCors ? 'cors' : 'no-cors';
-                if (allowCors) {
-                    fetchOptions.headers = { 'Accept': 'application/dns-message' };
-                }
+                fetchOptions.headers = DNS_MESSAGE_HEADERS;
             }
             response = await fetch(urlWithParam, fetchOptions);
         } else {
@@ -479,13 +475,18 @@ async function measureDNSSpeed(dohUrl, hostname, serverType = 'post', allowCors 
                     signal: controller.signal,
                     headers: {
                         'Content-Type': 'application/dns-message',
-                        'Accept': 'application/dns-message'
+                        ...DNS_MESSAGE_HEADERS
                     }
                 });
             } else {
                 const urlWithParam = new URL(dohUrl);
                 urlWithParam.searchParams.set('dns', encodeDnsQueryBase64Url(dnsQuery));
-                response = await fetch(urlWithParam, { method: 'GET', mode: 'no-cors', signal: controller.signal });
+                response = await fetch(urlWithParam, {
+                    method: 'GET',
+                    mode: 'no-cors',
+                    signal: controller.signal,
+                    headers: DNS_MESSAGE_HEADERS
+                });
             }
         }
 
@@ -928,7 +929,7 @@ async function checkServerCapabilities(name, url) {
 
     const testGet = async (mode) => {
         const urlToUse = usesJsonApi ? jsonGetUrl : wireGetUrl;
-        const headers = usesJsonApi ? { 'Accept': 'application/dns-json' } : { 'Accept': 'application/dns-message' };
+        const headers = usesJsonApi ? DNS_JSON_HEADERS : DNS_MESSAGE_HEADERS;
         const response = await withTimeout(urlToUse, { method: 'GET', mode, headers });
         if (!response) return { success: false, cors: false };
         if (mode === 'cors') return { success: response.ok, cors: response.type === 'cors' };
@@ -939,7 +940,7 @@ async function checkServerCapabilities(name, url) {
         if (usesJsonApi) return { success: false, cors: false };
         const response = await withTimeout(url, {
             method: 'POST', mode: 'cors',
-            headers: { 'Content-Type': 'application/dns-message', 'Accept': 'application/dns-message' },
+            headers: { 'Content-Type': 'application/dns-message', ...DNS_MESSAGE_HEADERS },
             body: dnsQuery
         });
         if (!response) return { success: false, cors: false };
