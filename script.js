@@ -35,34 +35,34 @@ const SETTINGS_STORAGE_KEYS = {
 };
 
 const DEFAULT_DNS_SERVERS = Object.freeze([
-    { name: "AdGuard", url: "https://dns.adguard-dns.com/dns-query", ips: ["94.140.14.14", "94.140.15.15"] },
-    { name: "AliDNS", url: "https://dns.alidns.com/dns-query", ips: ["223.5.5.5", "223.6.6.6"] },
-    { name: "OpenDNS", url: "https://doh.opendns.com/dns-query", ips: ["208.67.222.222", "208.67.220.220"] },
-    { name: "CleanBrowsing", url: "https://doh.cleanbrowsing.org/doh/family-filter/", ips: ["185.228.168.9", "185.228.169.9"] },
-    { name: "Cloudflare", url: "https://cloudflare-dns.com/dns-query", type: "get", allowCors: true, ips: ["1.1.1.1", "1.0.0.1"] },
-    { name: "ControlD", url: "https://freedns.controld.com/p0", ips: ["76.76.2.0", "76.223.122.150"] },
-    { name: "DNS.SB", url: "https://doh.dns.sb/dns-query", type: "get", allowCors: true, ips: ["185.222.222.222", "45.11.45.11"] },
-    { name: "DNSPod", url: "https://dns.pub/dns-query", type: "post", allowCors: false, ips: ["119.29.29.29", "182.254.116.116"] },
-    { name: "Google", url: "https://dns.google/resolve", type: "get", allowCors: true, ips: ["8.8.8.8", "8.8.4.4"] },
-    { name: "Mullvad", url: "https://dns.mullvad.net/dns-query", ips: ["194.242.2.2", "194.242.2.2"], type: "get", allowCors: false },
-    { name: "Mullvad Base", url: "https://base.dns.mullvad.net/dns-query", ips: ["194.242.2.4", "194.242.2.4"], type: "get", allowCors: false },
-    { name: "NextDNS", url: "https://dns.nextdns.io", type: "get", ips: ["45.90.28.0", "45.90.30.0"] },
-    { name: "OpenBLD", url: "https://ada.openbld.net/dns-query", ips: ["146.112.41.2", "146.112.41.102"], allowCors: false },
-    { name: "DNS4EU", url: "https://unfiltered.joindns4.eu/dns-query", ips: ["86.54.11.100", "86.54.11.200"], type: "post", allowCors: false },
-    { name: "Quad9", url: "https://dns.quad9.net/dns-query", ips: ["9.9.9.9", "149.112.112.112"] },
-    { name: "360", url: "https://doh.360.cn/dns-query", ips: ["101.226.4.6", "180.163.224.54"] },
-    { name: "Canadian Shield", url: "https://private.canadianshield.cira.ca/dns-query", ips: ["149.112.121.10", "149.112.122.10"] },
-    { name: "Digitale Gesellschaft", url: "https://dns.digitale-gesellschaft.ch/dns-query", ips: ["185.95.218.42", "185.95.218.43"] },
-    { name: "DNS for Family", url: "https://dns-doh.dnsforfamily.com/dns-query", ips: ["94.130.180.225", "78.47.64.161"] },
-    { name: "Restena", url: "https://dnspub.restena.lu/dns-query", ips: ["158.64.1.29"] },
-    { name: "IIJ", url: "https://public.dns.iij.jp/dns-query", ips: ["203.180.164.45", "203.180.166.45"] },
-    { name: "LibreDNS", url: "https://doh.libredns.gr/dns-query", ips: ["116.202.176.26", "147.135.76.183"] },
-    { name: "Switch", url: "https://dns.switch.ch/dns-query", ips: ["130.59.31.248", "130.59.31.251"] },
-    { name: "Foundation for Applied Privacy", url: "https://doh.applied-privacy.net/query", ips: ["146.255.56.98"] },
-    { name: "UncensoredDNS", url: "https://anycast.uncensoreddns.org/dns-query", ips: ["91.239.100.100", "89.233.43.71"] },
-    { name: "RethinkDNS", url: "https://sky.rethinkdns.com/dns-query", ips: ["104.21.83.62", "172.67.214.246"], allowCors: false },
-    { name: "FlashStart (registration required)", url: "https://doh.flashstart.com/f17c9ee5", type: "post", allowCors: false, ips: ["185.236.104.104"] },
-    { name: "Comcast Xfinity", url: "https://doh.xfinity.com/dns-query", type: "get", allowCors: false, ips: ["75.75.75.75", "75.75.76.76"] }
+    { name: "AdGuard", countryCode: "CY", country: "Cyprus", url: "https://dns.adguard-dns.com/dns-query", ips: ["94.140.14.14", "94.140.15.15"] },
+    { name: "AliDNS", countryCode: "CN", country: "China", url: "https://dns.alidns.com/dns-query", ips: ["223.5.5.5", "223.6.6.6"] },
+    { name: "OpenDNS", countryCode: "US", country: "United States", url: "https://doh.opendns.com/dns-query", ips: ["208.67.222.222", "208.67.220.220"] },
+    { name: "CleanBrowsing", countryCode: "US", country: "United States", url: "https://doh.cleanbrowsing.org/doh/family-filter/", ips: ["185.228.168.9", "185.228.169.9"] },
+    { name: "Cloudflare", countryCode: "US", country: "United States", url: "https://cloudflare-dns.com/dns-query", type: "get", allowCors: true, ips: ["1.1.1.1", "1.0.0.1"] },
+    { name: "ControlD", countryCode: "CA", country: "Canada", url: "https://freedns.controld.com/p0", ips: ["76.76.2.0", "76.223.122.150"] },
+    { name: "DNS.SB", countryCode: "DE", country: "Germany", url: "https://doh.dns.sb/dns-query", type: "get", allowCors: true, ips: ["185.222.222.222", "45.11.45.11"] },
+    { name: "DNSPod", countryCode: "CN", country: "China", url: "https://dns.pub/dns-query", type: "post", allowCors: false, ips: ["119.29.29.29", "182.254.116.116"] },
+    { name: "Google", countryCode: "US", country: "United States", url: "https://dns.google/resolve", type: "get", allowCors: true, ips: ["8.8.8.8", "8.8.4.4"] },
+    { name: "Mullvad", countryCode: "SE", country: "Sweden", url: "https://dns.mullvad.net/dns-query", ips: ["194.242.2.2", "194.242.2.2"], type: "get", allowCors: false },
+    { name: "Mullvad Base", countryCode: "SE", country: "Sweden", url: "https://base.dns.mullvad.net/dns-query", ips: ["194.242.2.4", "194.242.2.4"], type: "get", allowCors: false },
+    { name: "NextDNS", countryCode: "US", country: "United States", url: "https://dns.nextdns.io", type: "get", ips: ["45.90.28.0", "45.90.30.0"] },
+    { name: "OpenBLD", countryCode: "KZ", country: "Kazakhstan", url: "https://ada.openbld.net/dns-query", ips: ["146.112.41.2", "146.112.41.102"], allowCors: false },
+    { name: "DNS4EU", countryCode: "CZ", country: "Czechia", url: "https://unfiltered.joindns4.eu/dns-query", ips: ["86.54.11.100", "86.54.11.200"], type: "post", allowCors: false },
+    { name: "Quad9", countryCode: "CH", country: "Switzerland", url: "https://dns.quad9.net/dns-query", ips: ["9.9.9.9", "149.112.112.112"] },
+    { name: "360", countryCode: "CN", country: "China", url: "https://doh.360.cn/dns-query", ips: ["101.226.4.6", "180.163.224.54"] },
+    { name: "Canadian Shield", countryCode: "CA", country: "Canada", url: "https://private.canadianshield.cira.ca/dns-query", ips: ["149.112.121.10", "149.112.122.10"] },
+    { name: "Digitale Gesellschaft", countryCode: "CH", country: "Switzerland", url: "https://dns.digitale-gesellschaft.ch/dns-query", ips: ["185.95.218.42", "185.95.218.43"] },
+    { name: "DNS for Family", countryCode: "DE", country: "Germany", url: "https://dns-doh.dnsforfamily.com/dns-query", ips: ["94.130.180.225", "78.47.64.161"] },
+    { name: "Restena", countryCode: "LU", country: "Luxembourg", url: "https://dnspub.restena.lu/dns-query", ips: ["158.64.1.29"] },
+    { name: "IIJ", countryCode: "JP", country: "Japan", url: "https://public.dns.iij.jp/dns-query", ips: ["203.180.164.45", "203.180.166.45"] },
+    { name: "LibreDNS", countryCode: "GR", country: "Greece", url: "https://doh.libredns.gr/dns-query", ips: ["116.202.176.26", "147.135.76.183"] },
+    { name: "Switch", countryCode: "CH", country: "Switzerland", url: "https://dns.switch.ch/dns-query", ips: ["130.59.31.248", "130.59.31.251"] },
+    { name: "Foundation for Applied Privacy", countryCode: "AT", country: "Austria", url: "https://doh.applied-privacy.net/query", ips: ["146.255.56.98"] },
+    { name: "UncensoredDNS", countryCode: "DK", country: "Denmark", url: "https://anycast.uncensoreddns.org/dns-query", ips: ["91.239.100.100", "89.233.43.71"] },
+    { name: "RethinkDNS", countryCode: "US", country: "United States", url: "https://sky.rethinkdns.com/dns-query", ips: ["104.21.83.62", "172.67.214.246"], allowCors: false },
+    { name: "FlashStart (registration required)", countryCode: "IT", country: "Italy", url: "https://doh.flashstart.com/f17c9ee5", type: "post", allowCors: false, ips: ["185.236.104.104"] },
+    { name: "Comcast Xfinity", countryCode: "US", country: "United States", url: "https://doh.xfinity.com/dns-query", type: "get", allowCors: false, ips: ["75.75.75.75", "75.75.76.76"] }
 ]);
 
 let topWebsites = loadStoredHostnames();
@@ -94,6 +94,57 @@ function writeStoredJson(key, value) {
         console.warn(`Unable to persist settings for ${key}`, error);
         return false;
     }
+}
+
+function normalizeCountryCode(value) {
+    if (typeof value !== 'string') return '';
+    const code = value.trim().toUpperCase();
+    return /^[A-Z]{2}$/.test(code) ? code : '';
+}
+
+function countryFlag(countryCode) {
+    const code = normalizeCountryCode(countryCode);
+    if (!code) return '';
+    return String.fromCodePoint(...[...code].map(char => 0x1f1e6 + char.charCodeAt(0) - 65));
+}
+
+function countryLabel(server) {
+    if (!server || typeof server !== 'object') return '';
+    const code = normalizeCountryCode(server.countryCode);
+    const country = typeof server.country === 'string' ? server.country.trim() : '';
+    if (!code || !country) return '';
+    return `${country} (${code})`;
+}
+
+function countryBadgeHTML(server, extraClasses = '') {
+    const label = countryLabel(server);
+    const flag = countryFlag(server && server.countryCode);
+    if (!label || !flag) return '';
+    const cls = `country-flag inline-flex shrink-0 items-center justify-center text-base leading-none ${extraClasses}`.trim();
+    return `<span class="${escapeHTML(cls)}" role="img" aria-label="${escapeHTML(label)}" title="${escapeHTML(label)}">${flag}</span>`;
+}
+
+function createCountryBadgeElement(server) {
+    const label = countryLabel(server);
+    const flag = countryFlag(server && server.countryCode);
+    if (!label || !flag) return null;
+    const badge = document.createElement('span');
+    badge.className = 'country-flag shrink-0 text-base leading-none';
+    badge.setAttribute('role', 'img');
+    badge.setAttribute('aria-label', label);
+    badge.title = label;
+    badge.textContent = flag;
+    return badge;
+}
+
+function findDefaultDoHServer(server) {
+    if (!server || typeof server !== 'object') return null;
+    const name = typeof server.name === 'string' ? server.name.trim().toLowerCase() : '';
+    const url = typeof server.url === 'string' ? server.url.trim() : '';
+    return DEFAULT_DNS_SERVERS.find(defaultServer =>
+        (url && defaultServer.url === url) ||
+        (name && defaultServer.name.toLowerCase() === name)
+    ) || null;
 }
 
 function normalizeHostnameForStorage(value) {
@@ -132,7 +183,17 @@ function normalizeDoHServerForStorage(server) {
         return null;
     }
 
+    const defaultServer = findDefaultDoHServer({ name, url });
+    const countryCode = normalizeCountryCode(server.countryCode) || (defaultServer && defaultServer.countryCode) || '';
+    const country = typeof server.country === 'string' && server.country.trim()
+        ? server.country.trim()
+        : (defaultServer && defaultServer.country) || '';
+
     const normalized = { name, url };
+    if (countryCode && country) {
+        normalized.countryCode = countryCode;
+        normalized.country = country;
+    }
     if (server.type === 'get' || server.type === 'post') normalized.type = server.type;
     if (typeof server.allowCors === 'boolean') normalized.allowCors = server.allowCors;
     normalized.ips = Array.isArray(server.ips)
@@ -388,15 +449,23 @@ function renderDoHList() {
         const info = document.createElement('div');
         info.className = 'min-w-0 flex-1';
 
-        const name = document.createElement('div');
+        const nameRow = document.createElement('div');
+        nameRow.className = 'flex items-center gap-2 min-w-0';
+
+        const countryBadge = createCountryBadgeElement(server);
+        if (countryBadge) nameRow.appendChild(countryBadge);
+
+        const name = document.createElement('span');
         name.className = 'text-slate-700 dark:text-slate-300 font-medium truncate';
         name.textContent = server.name;
+        nameRow.appendChild(name);
 
         const url = document.createElement('div');
         url.className = 'text-xs text-slate-400 dark:text-slate-500 truncate';
-        url.textContent = server.url;
+        const country = countryLabel(server);
+        url.textContent = country ? `${country} · ${server.url}` : server.url;
 
-        info.append(name, url);
+        info.append(nameRow, url);
 
         const btn = document.createElement('button');
         btn.className = 'shrink-0 p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-slate-400 hover:text-red-600 dark:hover:text-red-400 transition-colors';
@@ -736,6 +805,11 @@ function updateResult(server) {
     const ipsText = server.ips && server.ips.length ? server.ips.join(', ') : '';
     const safeName = escapeHTML(server.name);
     const safeIpsText = escapeHTML(ipsText);
+    const country = countryLabel(server);
+    const countryHTML = country ? countryBadgeHTML(server) : '';
+    const countryDetailHTML = country
+        ? `<p class="text-xs text-slate-500 dark:text-slate-400 mb-3">Provider country: ${countryHTML} <span>${escapeHTML(country)}</span></p>`
+        : '';
 
     row.innerHTML = `
         <td class="py-3 px-4 text-left">
@@ -743,6 +817,7 @@ function updateResult(server) {
                 <svg class="expand-chevron w-3 h-3 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
                 <div class="min-w-0">
                     <div class="flex items-center gap-2 flex-wrap">
+                        ${countryHTML}
                         <span class="font-medium text-slate-800 dark:text-slate-200">${safeName}</span>
                         ${badgeHTML}
                     </div>
@@ -759,11 +834,12 @@ function updateResult(server) {
     const reliabilityMsg = server.reliability && server.reliability.message
         ? `<p class="text-xs text-slate-500 dark:text-slate-400 mb-3">${server.reliability.message}</p>` : '';
 
-    const copyData = `${server.name}\nURL: ${server.url}\nIPs: ${ipsText}`;
+    const copyData = `${server.name}\n${country ? `Country: ${country}\n` : ''}URL: ${server.url}\nIPs: ${ipsText}`;
 
     detailsRow.innerHTML = `
         <td colspan="5" class="px-4 py-3 bg-slate-50/50 dark:bg-slate-800/20 border-b border-slate-100 dark:border-slate-800/50">
             ${reliabilityMsg}
+            ${countryDetailHTML}
             <div class="flex items-center gap-2 mb-3">
                 <code class="text-xs text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded truncate">${escapeHTML(server.url)}</code>
                 <button class="copy-btn shrink-0 px-2 py-1 text-xs text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded transition-colors"
@@ -832,7 +908,10 @@ function showTopResults() {
             <li class="flex items-center gap-4 px-4 py-3">
                 <span class="text-lg font-bold tabnum ${medal} w-6 text-right">${i + 1}</span>
                 <div class="flex-1 min-w-0">
-                    <span class="font-medium text-slate-800 dark:text-slate-200">${escapeHTML(server.name)}</span>
+                    <span class="inline-flex items-center gap-2 min-w-0">
+                        ${countryBadgeHTML(server)}
+                        <span class="font-medium text-slate-800 dark:text-slate-200 truncate">${escapeHTML(server.name)}</span>
+                    </span>
                     ${server.ips && server.ips.length ? `<span class="text-xs text-slate-400 ml-2 tabnum">${escapeHTML(server.ips[0])}</span>` : ''}
                 </div>
                 <div class="text-right shrink-0">
@@ -936,6 +1015,7 @@ function updateChartWithData(server) {
     const hasData = server.reliability ? server.reliability.successCount > 0 : server.speed.avg !== 'Unavailable';
     const info = {
         name: server.name,
+        countryCode: server.countryCode || '',
         avg: hasData && typeof server.speed.avg === 'number' ? server.speed.avg : null,
         min: hasData && typeof server.speed.min === 'number' ? server.speed.min : null,
         max: hasData && typeof server.speed.max === 'number' ? server.speed.max : null
@@ -973,7 +1053,10 @@ function updateChart() {
     dnsChart = new Chart(ctx, {
         type: 'bar',
         data: {
-            labels: validData.map(d => d.name),
+            labels: validData.map(d => {
+                const flag = countryFlag(d.countryCode);
+                return flag ? `${flag} ${d.name}` : d.name;
+            }),
             datasets: [{
                 label: 'Avg Response Time (ms)',
                 data: validData.map(d => d.avg),

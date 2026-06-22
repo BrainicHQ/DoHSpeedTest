@@ -115,8 +115,14 @@ function createHarness(seed = {}) {
     return { context, elements, storage };
 }
 
+function nodeText(element) {
+    if (!element) return '';
+    if (!element.children || element.children.length === 0) return element.textContent;
+    return element.children.map(nodeText).join('');
+}
+
 function listText(element) {
-    return element.children.map(child => child.textContent);
+    return element.children.map(nodeText);
 }
 
 {
@@ -135,6 +141,40 @@ function listText(element) {
     const dohRows = elements.get('dohList').children;
     assert.equal(dohRows.length, 1);
     assert.deepEqual(listText(dohRows[0].children[0]), ['Saved DNS', 'https://saved.example/dns-query']);
+}
+
+{
+    const { context } = createHarness();
+
+    const providers = vm.runInNewContext(`DEFAULT_DNS_SERVERS.map(server => ({
+        name: server.name,
+        countryCode: server.countryCode,
+        country: server.country,
+        flag: countryFlag(server.countryCode)
+    }))`, context);
+    const missingCountry = providers.filter(server => !server.countryCode || !server.country || !server.flag);
+
+    assert.equal(providers.length, 28);
+    assert.equal(missingCountry.length, 0);
+}
+
+{
+    const { context, storage } = createHarness({
+        [DOH_KEY]: JSON.stringify([
+            { name: 'AdGuard', url: 'https://dns.adguard-dns.com/dns-query', ips: ['94.140.14.14'] },
+            { name: 'Custom DNS', url: 'https://custom.example/dns-query', ips: [] }
+        ])
+    });
+
+    assert.equal(vm.runInNewContext('dnsServers[0].countryCode', context), 'CY');
+    assert.equal(vm.runInNewContext('dnsServers[0].country', context), 'Cyprus');
+    assert.equal(vm.runInNewContext('dnsServers[1].countryCode', context), undefined);
+
+    vm.runInNewContext('persistDoHServers()', context);
+    const persisted = JSON.parse(storage.get(DOH_KEY));
+    assert.equal(persisted[0].countryCode, 'CY');
+    assert.equal(persisted[0].country, 'Cyprus');
+    assert.equal(Object.hasOwn(persisted[1], 'countryCode'), false);
 }
 
 {
@@ -177,7 +217,8 @@ function listText(element) {
 
     vm.runInNewContext('renderHostsList(); renderDoHList();', context);
     assert.equal(elements.get('websiteList').children[0].children[0].textContent, 'google.com');
-    assert.equal(elements.get('dohList').children[0].children[0].children[0].textContent, 'AdGuard');
+    assert.equal(nodeText(elements.get('dohList').children[0].children[0].children[0]).endsWith('AdGuard'), true);
+    assert.match(elements.get('dohList').children[0].children[0].children[1].textContent, /^Cyprus \(CY\)/);
 }
 
 console.log('Settings persistence tests passed');
