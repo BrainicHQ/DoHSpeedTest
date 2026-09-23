@@ -19,7 +19,7 @@ DNS Speed Test benchmarks 28+ DNS-over-HTTPS (DoH) servers directly from the use
 
 ## DNS servers tested
 
-AdGuard, AliDNS, OpenDNS, CleanBrowsing, Cloudflare (1.1.1.1), ControlD, DNS.SB, DNSPod, Google (8.8.8.8), Mullvad, NextDNS, OpenBLD, DNS4EU, Quad9 (9.9.9.9), 360, Canadian Shield, Digitale Gesellschaft, DNS for Family, Restena, IIJ, LibreDNS, Switch, Foundation for Applied Privacy, UncensoredDNS, RethinkDNS, FlashStart, Comcast Xfinity.
+AdGuard, AliDNS, OpenDNS, CleanBrowsing, Cloudflare (1.1.1.1), ControlD, DNS.SB, DNSPod, Google (8.8.8.8), NextDNS, OpenBLD, DNS4EU, Quad9 (9.9.9.9), 360, Canadian Shield, Digitale Gesellschaft, DNS for Family, Restena, IIJ, LibreDNS, Switch, Foundation for Applied Privacy, UncensoredDNS, RethinkDNS, FlashStart, Comcast Xfinity.
 
 ## Author
 

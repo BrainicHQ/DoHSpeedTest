@@ -154,7 +154,7 @@ function listText(element) {
     }))`, context);
     const missingCountry = providers.filter(server => !server.countryCode || !server.country || !server.flag);
 
-    assert.equal(providers.length, 28);
+    assert.equal(providers.length, 26);
     assert.equal(missingCountry.length, 0);
 }
 
