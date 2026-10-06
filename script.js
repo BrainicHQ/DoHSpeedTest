@@ -44,8 +44,6 @@ const DEFAULT_DNS_SERVERS = Object.freeze([
     { name: "DNS.SB", countryCode: "DE", country: "Germany", url: "https://doh.dns.sb/dns-query", type: "get", allowCors: true, ips: ["185.222.222.222", "45.11.45.11"] },
     { name: "DNSPod", countryCode: "CN", country: "China", url: "https://dns.pub/dns-query", type: "post", allowCors: false, ips: ["119.29.29.29", "182.254.116.116"] },
     { name: "Google", countryCode: "US", country: "United States", url: "https://dns.google/resolve", type: "get", allowCors: true, ips: ["8.8.8.8", "8.8.4.4"] },
-    { name: "Mullvad", countryCode: "SE", country: "Sweden", url: "https://dns.mullvad.net/dns-query", ips: ["194.242.2.2", "194.242.2.2"], type: "get", allowCors: false },
-    { name: "Mullvad Base", countryCode: "SE", country: "Sweden", url: "https://base.dns.mullvad.net/dns-query", ips: ["194.242.2.4", "194.242.2.4"], type: "get", allowCors: false },
     { name: "NextDNS", countryCode: "US", country: "United States", url: "https://dns.nextdns.io", type: "get", ips: ["45.90.28.0", "45.90.30.0"] },
     { name: "OpenBLD", countryCode: "KZ", country: "Kazakhstan", url: "https://ada.openbld.net/dns-query", ips: ["146.112.41.2", "146.112.41.102"], allowCors: false },
     { name: "DNS4EU", countryCode: "CZ", country: "Czechia", url: "https://unfiltered.joindns4.eu/dns-query", ips: ["86.54.11.100", "86.54.11.200"], type: "post", allowCors: false },
@@ -178,7 +176,9 @@ function normalizeDoHServerForStorage(server) {
 
     try {
         const parsedUrl = new URL(url);
-        if (parsedUrl.protocol !== 'https:') return null;
+        // Ignore the retired Mullvad public resolvers in saved settings.
+        if (parsedUrl.protocol !== 'https:' ||
+            ['dns.mullvad.net', 'base.dns.mullvad.net'].includes(parsedUrl.hostname)) return null;
     } catch {
         return null;
     }
