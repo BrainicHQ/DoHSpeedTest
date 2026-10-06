@@ -46,6 +46,8 @@ function createElement(id = '') {
         setAttribute: () => {},
         focus: () => {},
         querySelector: () => null,
+        showModal: function () { this.open = true; },
+        close: function () { this.open = false; },
         querySelectorAll: () => [],
         getContext: () => ({})
     };
@@ -99,7 +101,8 @@ function createHarness(seed = {}) {
         performance: { now: () => 0 },
         localStorage: {
             getItem: key => storage.has(key) ? storage.get(key) : null,
-            setItem: (key, value) => storage.set(key, value)
+            setItem: (key, value) => storage.set(key, value),
+            removeItem: key => storage.delete(key)
         },
         navigator: {
             clipboard: { writeText: async () => {} }
@@ -107,7 +110,8 @@ function createHarness(seed = {}) {
         document,
         Chart: function Chart() {},
         addEventListener: () => {},
-        matchMedia: () => ({ matches: false })
+        matchMedia: () => ({ matches: false }),
+        confirm: () => true
     };
     context.window = context;
 
@@ -278,6 +282,94 @@ function listText(element) {
     assert.match(vm.runInNewContext('hostnameBreakdownHTML([])', context), /No hostname results/);
     assert.match(vm.runInNewContext('hostnameBreakdownHTML([{ website: "failed.example", speed: null }])', context), /No successful responses/);
     assert.doesNotMatch(vm.runInNewContext('hostnameBreakdownHTML([{ website: "zero.example", speed: 0 }])', context), /NaN|Infinity/);
+}
+
+// Settings transfer validates the whole file and preserves existing data on failure.
+{
+    const { context, elements, storage } = createHarness({
+        [HOSTS_KEY]: JSON.stringify(['original.example']),
+        [DOH_KEY]: JSON.stringify([{ name: 'Original DNS', url: 'https://original.example/dns-query' }])
+    });
+    const original = new Map(storage);
+    const snapshot = vm.runInNewContext('exportSettingsJSON()', context);
+    assert.deepEqual(JSON.parse(snapshot).hostnames, ['original.example']);
+    assert.equal(JSON.parse(snapshot).dohServers[0].url, 'https://original.example/dns-query');
+    const settings = {
+        version: 1, hostnames: ['Example.ORG', 'https://example.org/path', 'second.example'],
+        dohServers: [{ name: 'Imported DNS', url: 'https://imported.example/dns-query', type: 'get', allowCors: true, ips: ['192.0.2.10'] }]
+    };
+    context.payload = JSON.stringify(settings);
+    const invalid = [
+        'not-json', 'null', '{}',
+        JSON.stringify({ ...settings, version: 2 }),
+        JSON.stringify({ ...settings, hostnames: ['not a host'] }),
+        JSON.stringify({ ...settings, dohServers: [{ name: 'HTTP DNS', url: 'http://invalid.example' }] }),
+        JSON.stringify({ ...settings, dohServers: [{ ...settings.dohServers[0], allowCors: 'true' }] })
+    ];
+    for (const payload of invalid) {
+        context.invalidPayload = payload;
+        assert.throws(() => vm.runInNewContext('importSettingsJSON(invalidPayload)', context));
+        assert.deepEqual(storage, original);
+    }
+    context.confirm = () => false;
+    assert.equal(vm.runInNewContext('importSettingsJSON(payload)', context), false);
+    assert.deepEqual(storage, original);
+    context.confirm = () => true;
+    const originalSetItem = context.localStorage.setItem;
+    context.localStorage.setItem = (key, value) => {
+        if (key === DOH_KEY) throw new Error('Quota exceeded');
+        originalSetItem(key, value);
+    };
+    assert.throws(() => vm.runInNewContext('importSettingsJSON(payload)', context), /unchanged/);
+    assert.deepEqual(storage, original);
+    assert.equal(vm.runInNewContext('topWebsites[0]', context), 'original.example');
+    context.localStorage.setItem = originalSetItem;
+    vm.runInNewContext('testRunning = true', context);
+    assert.throws(() => vm.runInNewContext('importSettingsJSON(payload)', context), /finish/);
+    assert.deepEqual(storage, original);
+    vm.runInNewContext('testRunning = false', context);
+    assert.equal(vm.runInNewContext('importSettingsJSON(payload)', context), true);
+    assert.deepEqual(JSON.parse(storage.get(HOSTS_KEY)), ['example.org', 'second.example']);
+    assert.deepEqual(JSON.parse(storage.get(DOH_KEY)), settings.dohServers);
+    assert.equal(elements.get('checkButton').disabled, false);
+    const roundTrip = vm.runInNewContext('exportSettingsJSON()', context);
+    const reloaded = createHarness(Object.fromEntries(storage));
+    assert.deepEqual(JSON.parse(vm.runInNewContext('exportSettingsJSON()', reloaded.context)), JSON.parse(roundTrip));
+    context.emptyServers = JSON.stringify({ version: 1, hostnames: ['example.org'], dohServers: [] });
+    vm.runInNewContext('importSettingsJSON(emptyServers)', context);
+    assert.equal(elements.get('checkButton').disabled, true);
+    assert.deepEqual(JSON.parse(storage.get(DOH_KEY)), []);
+    vm.runInNewContext('importSettingsJSON(JSON.stringify({version:1,hostnames:[],dohServers:[]}))', context);
+    assert.deepEqual(JSON.parse(storage.get(HOSTS_KEY)), []);
+}
+
+// A failed second write must also restore the absence of a hostname key.
+{
+    const { context, storage } = createHarness();
+    const setItem = context.localStorage.setItem;
+    context.localStorage.setItem = (key, value) => {
+        if (key === DOH_KEY) throw new Error('Quota exceeded');
+        setItem(key, value);
+    };
+    assert.throws(() => vm.runInNewContext('importSettingsJSON(JSON.stringify({version:1,hostnames:["example.org"],dohServers:[]}))', context), /unchanged/);
+    assert.equal(storage.has(HOSTS_KEY), false);
+    assert.equal(storage.has(DOH_KEY), false);
+}
+
+// Every supported URL hostname must also survive storage and settings transfer.
+{
+    const { context, elements, storage } = createHarness();
+    for (const value of ['https://пример.рф', 'https://localhost', 'https://example.com.']) {
+        elements.get('newWebsite').value = value;
+        elements.get('addHostname').click();
+    }
+    context.backup = vm.runInNewContext('exportSettingsJSON()', context);
+    assert.doesNotThrow(() => vm.runInNewContext('importSettingsJSON(backup)', context));
+    const reloaded = createHarness(Object.fromEntries(storage));
+    const restored = JSON.parse(vm.runInNewContext('exportSettingsJSON()', reloaded.context));
+    assert.ok(restored.hostnames.includes('xn--e1afmkfd.xn--p1ai'));
+    assert.ok(restored.hostnames.includes('localhost'));
+    assert.ok(restored.hostnames.includes('example.com.'));
 }
 
 console.log('Settings persistence tests passed');

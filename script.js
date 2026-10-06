@@ -232,6 +232,60 @@ function persistDoHServers() {
     writeStoredJson(SETTINGS_STORAGE_KEYS.dohServers, dnsServers.map(normalizeDoHServerForStorage).filter(Boolean));
 }
 
+function exportSettingsJSON() {
+    return JSON.stringify({ version: 1, hostnames: topWebsites,
+        dohServers: dnsServers.map(normalizeDoHServerForStorage).filter(Boolean) }, null, 2);
+}
+
+function parseSettingsImport(text) {
+    let settings;
+    try { settings = JSON.parse(text); }
+    catch { throw new Error('Choose a valid JSON settings file.'); }
+    if (!settings || settings.version !== 1 || !Array.isArray(settings.hostnames) || !Array.isArray(settings.dohServers)) {
+        throw new Error('Choose a DNS Speed Test settings export (version 1).');
+    }
+    const hostnames = settings.hostnames.map(normalizeHostnameForStorage);
+    if (hostnames.some(host => !host)) throw new Error('The file contains an invalid hostname. Nothing was imported.');
+    const servers = settings.dohServers.map(server => {
+        const normalized = normalizeDoHServerForStorage(server);
+        if (!normalized || (server.type !== undefined && !['get', 'post'].includes(server.type)) ||
+            (server.allowCors !== undefined && typeof server.allowCors !== 'boolean')) {
+            throw new Error('The file contains an invalid or retired DoH server. Nothing was imported.');
+        }
+        return normalized;
+    });
+    return { version: 1, hostnames: [...new Set(hostnames)], dohServers: dedupeDoHServers(servers) };
+}
+
+function importSettingsJSON(text) {
+    if (testRunning) throw new Error('Wait for the current speed test to finish before importing.');
+    const settings = parseSettingsImport(text);
+    if (!window.confirm(`Replace your current lists with this file?\n\nHostnames: ${settings.hostnames.length}\nDoH servers: ${settings.dohServers.length}\n\nExport your current settings first if you want to keep a backup.`)) return false;
+    const saveError = 'Could not save the import. Your current settings are unchanged.';
+    let previousHostnames;
+    try { previousHostnames = localStorage.getItem(SETTINGS_STORAGE_KEYS.hostnames); }
+    catch { throw new Error(saveError); }
+    if (!writeStoredJson(SETTINGS_STORAGE_KEYS.hostnames, settings.hostnames)) throw new Error(saveError);
+    if (!writeStoredJson(SETTINGS_STORAGE_KEYS.dohServers, settings.dohServers)) {
+        try {
+            if (previousHostnames === null) localStorage.removeItem(SETTINGS_STORAGE_KEYS.hostnames);
+            else localStorage.setItem(SETTINGS_STORAGE_KEYS.hostnames, previousHostnames);
+        } catch {
+            throw new Error('Could not save the import. Export your current settings before reloading.');
+        }
+        throw new Error(saveError);
+    }
+    topWebsites = settings.hostnames;
+    dnsServers = settings.dohServers;
+    renderHostsList();
+    renderDoHList();
+    chartData = [];
+    resultsBody.innerHTML = '';
+    [chartSection, tableSection, topResults].forEach(section => section.classList.add('hidden'));
+    setButtonState('idle');
+    return true;
+}
+
 function escapeHTML(value) {
     return String(value).replace(/[&<>"']/g, char => ({
         '&': '&amp;',
@@ -265,7 +319,12 @@ const chartSection = $('chartSection');
 const tableSection = $('tableSection');
 const resultsBody = $('resultsBody');
 
-checkButton.disabled = topWebsites.length === 0;
+updateTestAvailability();
+
+function updateTestAvailability() {
+    checkButton.disabled = testRunning || topWebsites.length === 0 || dnsServers.length === 0;
+    $('importSettings').disabled = testRunning;
+}
 
 // ─── Theme ───────────────────────────────────────────────────────────────────
 
@@ -327,30 +386,54 @@ $('shareBtn').addEventListener('click', () => {
 // ─── Settings Drawer ─────────────────────────────────────────────────────────
 
 const drawer = $('settingsDrawer');
-const overlay = $('drawerOverlay');
 
 function openDrawer() {
-    overlay.classList.remove('hidden');
-    requestAnimationFrame(() => {
-        overlay.style.opacity = '1';
-        drawer.style.transform = 'translateX(0)';
-    });
     renderHostsList();
     renderDoHList();
+    drawer.showModal();
 }
 
 function closeDrawer() {
-    overlay.style.opacity = '0';
-    drawer.style.transform = 'translateX(100%)';
-    setTimeout(() => overlay.classList.add('hidden'), 200);
+    drawer.close();
 }
 
 $('settingsBtn').addEventListener('click', openDrawer);
 $('closeDrawer').addEventListener('click', closeDrawer);
-overlay.addEventListener('click', closeDrawer);
+drawer.addEventListener('click', event => {
+    if (event.target !== drawer) return;
+    const bounds = drawer.getBoundingClientRect();
+    if (event.clientX < bounds.left || event.clientX > bounds.right ||
+        event.clientY < bounds.top || event.clientY > bounds.bottom) closeDrawer();
+});
 
-document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && !overlay.classList.contains('hidden')) closeDrawer();
+$('exportSettings').addEventListener('click', () => {
+    const url = URL.createObjectURL(new Blob([exportSettingsJSON()], { type: 'application/json' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'dns-speed-test-settings.json';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+});
+
+$('importSettings').addEventListener('click', () => $('settingsFile').click());
+$('settingsFile').addEventListener('change', async event => {
+    const file = event.target.files[0];
+    if (!file) return;
+    const status = $('settingsTransferStatus');
+    status.textContent = '';
+    try {
+        if (file.size > 1024 * 1024) throw new Error('Choose a settings file smaller than 1 MB.');
+        const imported = importSettingsJSON(await file.text());
+        status.textContent = imported
+            ? `Imported settings. Hostnames: ${topWebsites.length}. DoH servers: ${dnsServers.length}.`
+            : 'Import cancelled. Your settings are unchanged.';
+    } catch (error) {
+        status.textContent = error.message;
+    } finally {
+        event.target.value = '';
+    }
 });
 
 // Drawer tabs
@@ -396,18 +479,18 @@ function renderHostsList() {
         li.append(span, btn);
         list.appendChild(li);
     });
-    checkButton.disabled = topWebsites.length === 0 && !testRunning;
+    updateTestAvailability();
 }
 
 function validateAndExtractHost(input) {
+    let hostname = input;
     try {
         const url = new URL(input);
-        if (url.protocol !== "http:" && url.protocol !== "https:") throw new Error();
-        return url.hostname;
-    } catch {
-        const hostnameRegex = /^(?!-)[A-Za-z0-9-]{1,63}(?<!-)(\.[A-Za-z]{2,})+$/;
-        return hostnameRegex.test(input) ? input : null;
-    }
+        if (url.protocol !== 'http:' && url.protocol !== 'https:') return null;
+        hostname = url.hostname;
+    } catch {}
+    const hostnameRegex = /^(?!-)[A-Za-z0-9-]{1,63}(?<!-)(\.(?!-)[A-Za-z0-9-]{1,63}(?<!-))*\.?$/;
+    return hostname.replace(/\.$/, '').length <= 253 && hostnameRegex.test(hostname) ? hostname : null;
 }
 
 $('addHostname').addEventListener('click', () => {
@@ -479,6 +562,7 @@ function renderDoHList() {
         li.append(info, btn);
         list.appendChild(li);
     });
+    updateTestAvailability();
 }
 
 $('addDoH').addEventListener('click', () => {
@@ -528,19 +612,17 @@ function setButtonState(state) {
     if (state === 'warmup') {
         btnIcon.innerHTML = spinnerSVG;
         btnText.textContent = 'Warming up...';
-        checkButton.disabled = true;
     } else if (state === 'testing') {
         btnIcon.innerHTML = spinnerSVG;
         // btnText updated per-server in performDNSTests
     } else if (state === 'done') {
         btnIcon.innerHTML = playSVG;
         btnText.textContent = 'Run Again';
-        checkButton.disabled = false;
     } else {
         btnIcon.innerHTML = playSVG;
         btnText.textContent = 'Run Speed Test';
-        checkButton.disabled = false;
     }
+    updateTestAvailability();
 }
 
 checkButton.addEventListener('click', async function () {
@@ -571,8 +653,8 @@ checkButton.addEventListener('click', async function () {
 
     // Hide progress, show final state
     progressContainer.classList.add('hidden');
-    setButtonState('done');
     testRunning = false;
+    setButtonState('done');
 
     // Show top results
     showTopResults();
