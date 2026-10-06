@@ -490,7 +490,12 @@ function validateAndExtractHost(input) {
         hostname = url.hostname;
     } catch {}
     const hostnameRegex = /^(?!-)[A-Za-z0-9-]{1,63}(?<!-)(\.(?!-)[A-Za-z0-9-]{1,63}(?<!-))*\.?$/;
-    return hostname.replace(/\.$/, '').length <= 253 && hostnameRegex.test(hostname) ? hostname : null;
+    if (hostname.replace(/\.$/, '').length > 253 || !hostnameRegex.test(hostname)) return null;
+    // DNS names are case-insensitive, so "Google.com" and "google.com" are the same host.
+    // new URL() already lowercases hostnames, but plain input like "Google.com" skips it.
+    // Lowercase here so the duplicate check in the add handler (topWebsites.includes) catches
+    // case variants, and so the in-session list matches what loadStoredHostnames() restores.
+    return hostname.toLowerCase();
 }
 
 $('addHostname').addEventListener('click', () => {
