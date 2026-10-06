@@ -250,4 +250,34 @@ function listText(element) {
     assert.equal(vm.runInNewContext('dnsServers.length', empty.context), 0);
 }
 
+// Hostname bars preserve exact timings, scale from zero, and exclude failed queries.
+{
+    const { context, elements } = createHarness();
+    context.results = [
+        { website: 'fast.example', speed: 50 },
+        { website: 'slow.example', speed: 200 },
+        { website: 'zero.example', speed: 0 },
+        { website: '<unsafe>&.example', speed: 'Unavailable' },
+        { website: 'invalid.example', speed: NaN }
+    ];
+    vm.runInNewContext(`updateResult({
+        name: 'Test DNS', url: 'https://test.example/dns-query', ips: [],
+        speed: { min: 0, median: 50, avg: 83.33, max: 200 },
+        reliability: { status: 'partial', successCount: 3, totalQueries: 5 },
+        individualResults: results
+    })`, context);
+    const html = elements.get('resultsBody').children[1].innerHTML;
+    const widths = [...html.matchAll(/width: ([\d.]+)%/g)].map(match => Number(match[1]));
+    assert.deepEqual(widths, [25, 100, 0]);
+    assert.match(html, /50\.00 ms/);
+    assert.match(html, /200\.00 ms/);
+    assert.match(html, /0\.00 ms/);
+    assert.match(html, /&lt;unsafe&gt;&amp;\.example/);
+    assert.equal((html.match(/Unavailable/g) || []).length, 2);
+    assert.doesNotMatch(html, /NaN|Infinity|<unsafe>/);
+    assert.match(vm.runInNewContext('hostnameBreakdownHTML([])', context), /No hostname results/);
+    assert.match(vm.runInNewContext('hostnameBreakdownHTML([{ website: "failed.example", speed: null }])', context), /No successful responses/);
+    assert.doesNotMatch(vm.runInNewContext('hostnameBreakdownHTML([{ website: "zero.example", speed: 0 }])', context), /NaN|Infinity/);
+}
+
 console.log('Settings persistence tests passed');

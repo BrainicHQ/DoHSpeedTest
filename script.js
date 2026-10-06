@@ -775,6 +775,31 @@ function findResultRow(server) {
         .find(row => row.dataset.serverName === server.name && row.dataset.serverUrl === server.url) || null;
 }
 
+function hostnameBreakdownHTML(results = []) {
+    if (!results.length) return '<p class="text-xs text-slate-500 dark:text-slate-400">No hostname results yet.</p>';
+    const speeds = results.filter(result => Number.isFinite(result.speed) && result.speed >= 0).map(result => result.speed);
+    const maxSpeed = Math.max(0, ...speeds);
+    const colorScale = [{ avg: Math.min(...speeds) }, { avg: maxSpeed }];
+
+    return `
+        <p class="text-xs text-slate-500 dark:text-slate-400 mb-2">${speeds.length
+            ? `Shorter bars are faster. Scale for this server: 0–${maxSpeed.toFixed(2)} ms.`
+            : 'No successful responses.'}</p>
+        <ul class="text-xs">
+            ${results.map(result => {
+                const available = Number.isFinite(result.speed) && result.speed >= 0;
+                const width = maxSpeed > 0 ? result.speed / maxSpeed * 100 : 0;
+                return `<li class="hostname-result">
+                    <span class="hostname-label text-slate-600 dark:text-slate-300">${escapeHTML(result.website)}</span>
+                    <span class="hostname-value tabnum ${available ? 'text-slate-700 dark:text-slate-200' : 'text-amber-800 dark:text-amber-300'}">${available ? result.speed.toFixed(2) + ' ms' : 'Unavailable'}</span>
+                    <div class="hostname-track bg-slate-200 dark:bg-slate-700" aria-hidden="true">${available
+                        ? `<div class="hostname-fill" style="width: ${width}%; background-color: ${getBarColor(result.speed, colorScale, true)}"></div>`
+                        : ''}</div>
+                </li>`;
+            }).join('')}
+        </ul>`;
+}
+
 function updateResult(server) {
     let row = findResultRow(server);
     let detailsRow;
@@ -791,12 +816,13 @@ function updateResult(server) {
 
         detailsRow = document.createElement('tr');
         detailsRow.className = 'details-row hidden';
+        detailsRow.id = `dns-details-${resultsBody.children.length}`;
         resultsBody.appendChild(detailsRow);
 
-        row.addEventListener('click', (e) => {
-            if (e.target.closest('.copy-btn')) return;
+        row.addEventListener('click', () => {
             detailsRow.classList.toggle('hidden');
             row.classList.toggle('row-expanded');
+            row.querySelector('.result-toggle').setAttribute('aria-expanded', String(!detailsRow.classList.contains('hidden')));
         });
     } else {
         detailsRow = row.nextElementSibling;
@@ -813,17 +839,18 @@ function updateResult(server) {
 
     row.innerHTML = `
         <td class="py-3 px-4 text-left">
-            <div class="flex items-center gap-2">
-                <svg class="expand-chevron w-3 h-3 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
-                <div class="min-w-0">
-                    <div class="flex items-center gap-2 flex-wrap">
+            <button type="button" class="result-toggle flex w-full min-h-[44px] items-center gap-2 text-left rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-600"
+                    aria-label="Hostname results for ${safeName}" aria-expanded="${!detailsRow.classList.contains('hidden')}" aria-controls="${detailsRow.id}">
+                <svg class="expand-chevron w-3 h-3 text-slate-400 shrink-0" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                <span class="min-w-0">
+                    <span class="flex items-center gap-2 flex-wrap">
                         ${countryHTML}
                         <span class="font-medium text-slate-800 dark:text-slate-200">${safeName}</span>
                         ${badgeHTML}
-                    </div>
-                    ${ipsText ? `<div class="text-xs text-slate-400 dark:text-slate-500 mt-0.5 tabnum">${safeIpsText}</div>` : ''}
-                </div>
-            </div>
+                    </span>
+                    ${ipsText ? `<span class="block text-xs text-slate-400 dark:text-slate-500 mt-0.5 tabnum">${safeIpsText}</span>` : ''}
+                </span>
+            </button>
         </td>
         <td class="py-3 px-4 text-right tabnum text-slate-700 dark:text-slate-300">${fmt(server.speed.min)}</td>
         <td class="py-3 px-4 text-right tabnum text-slate-700 dark:text-slate-300">${fmt(server.speed.median)}</td>
@@ -838,6 +865,7 @@ function updateResult(server) {
 
     detailsRow.innerHTML = `
         <td colspan="5" class="px-4 py-3 bg-slate-50/50 dark:bg-slate-800/20 border-b border-slate-100 dark:border-slate-800/50">
+          <div class="dns-details">
             ${reliabilityMsg}
             ${countryDetailHTML}
             <div class="flex items-center gap-2 mb-3">
@@ -848,14 +876,8 @@ function updateResult(server) {
                 </button>
             </div>
             <div class="text-xs text-slate-500 dark:text-slate-400 font-medium mb-1.5">Per-hostname breakdown:</div>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-0.5 text-xs">
-                ${(server.individualResults || []).map(r =>
-                    `<div class="flex justify-between py-0.5">
-                        <span class="text-slate-600 dark:text-slate-400">${escapeHTML(r.website)}</span>
-                        <span class="tabnum ${typeof r.speed === 'number' ? 'text-slate-700 dark:text-slate-300' : 'text-slate-400'}">${typeof r.speed === 'number' ? r.speed.toFixed(2) + ' ms' : 'N/A'}</span>
-                    </div>`
-                ).join('')}
-            </div>
+            ${hostnameBreakdownHTML(server.individualResults || [])}
+          </div>
         </td>
     `;
 

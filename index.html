@@ -131,6 +131,18 @@
     .expand-chevron { transition: transform 0.2s ease; }
     .row-expanded .expand-chevron { transform: rotate(90deg); }
 
+    /* Keep details within the viewport while the summary table scrolls. */
+    .dns-details { max-width: calc(100vw - 4.25rem); }
+    .hostname-result { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.375rem 0.75rem; align-items: center; padding: 0.375rem 0; }
+    .hostname-label { overflow-wrap: anywhere; }
+    .hostname-track { grid-column: 1 / -1; height: 0.75rem; border-radius: 9999px; overflow: hidden; }
+    .hostname-fill { height: 100%; border-radius: inherit; }
+    @media (min-width: 640px) {
+      .hostname-result { grid-template-columns: minmax(0, 14rem) minmax(0, 1fr) auto; }
+      .hostname-track { grid-column: 2; grid-row: 1; }
+      .hostname-value { grid-column: 3; grid-row: 1; text-align: right; }
+    }
+
     /* Results fade in */
     @keyframes fadeUp {
       from { opacity: 0; transform: translateY(16px); }
@@ -261,7 +273,7 @@
           </table>
         </div>
       </div>
-      <p class="mt-2 text-xs text-slate-400 dark:text-slate-500 text-center">Click any row to see per-hostname breakdown. All times in ms.</p>
+      <p class="mt-2 text-xs text-slate-400 dark:text-slate-500 text-center">Select a DNS server to see per-hostname timings. All times in ms.</p>
     </section>
 
     <!-- Methodology / Disclaimer -->
