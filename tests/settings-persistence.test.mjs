@@ -372,4 +372,21 @@ function listText(element) {
     assert.ok(restored.hostnames.includes('example.com.'));
 }
 
+// Hostnames differing only by case are the same host: adding one must be rejected as a duplicate,
+// and the session list must match what is restored after a reload.
+{
+    const { elements, storage } = createHarness();
+    for (const value of ['Google.com', 'GOOGLE.COM', 'https://Google.com/path', 'New.Example']) {
+        elements.get('newWebsite').value = value;
+        elements.get('addHostname').click();
+    }
+    const saved = JSON.parse(storage.get(HOSTS_KEY));
+    // google.com is already a default, so only the new host is added, stored in lowercase.
+    assert.equal(saved.filter(host => host.toLowerCase() === 'google.com').length, 1);
+    assert.ok(saved.includes('new.example'));
+    assert.deepEqual(saved, saved.map(host => host.toLowerCase()));
+    const reloaded = createHarness(Object.fromEntries(storage));
+    assert.deepEqual(JSON.parse(vm.runInNewContext('JSON.stringify(topWebsites)', reloaded.context)), saved);
+}
+
 console.log('Settings persistence tests passed');
