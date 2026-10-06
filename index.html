@@ -104,8 +104,9 @@
     .row-enter { animation: rowIn 0.25s ease-out both; }
 
     /* Drawer */
-    #settingsDrawer { transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
-    #drawerOverlay { transition: opacity 0.2s ease; }
+    #settingsDrawer { margin: 0 0 0 auto; border: 0; padding: 0; height: 100dvh; max-height: none; max-width: 100%; }
+    #settingsDrawer[open] { display: flex; }
+    #settingsDrawer::backdrop { background: rgba(0, 0, 0, 0.4); }
 
     /* Toast */
     @keyframes toastIn {
@@ -314,12 +315,11 @@
   </main>
 
   <!-- Settings Drawer -->
-  <div id="drawerOverlay" class="hidden fixed inset-0 z-50 bg-black/40"></div>
-  <aside id="settingsDrawer"
-         class="fixed top-0 right-0 bottom-0 w-full sm:w-[400px] z-50 bg-white dark:bg-slate-900 shadow-2xl transform translate-x-full flex flex-col">
+  <dialog id="settingsDrawer" aria-labelledby="settingsTitle"
+          class="fixed top-0 right-0 bottom-0 w-full sm:w-[400px] bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-2xl flex-col">
     <header class="flex items-center justify-between px-4 h-14 border-b border-slate-200 dark:border-slate-800 shrink-0">
-      <h2 class="font-semibold text-sm">Settings</h2>
-      <button id="closeDrawer" class="p-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" aria-label="Close settings">
+      <h2 id="settingsTitle" class="font-semibold text-sm">Settings</h2>
+      <button id="closeDrawer" autofocus class="p-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" aria-label="Close settings">
         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
           <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
         </svg>
@@ -355,7 +355,7 @@
       <div class="px-4 py-3 border-t border-slate-200 dark:border-slate-800 shrink-0">
         <div class="flex gap-2">
           <input type="text" id="newWebsite"
-                 class="flex-1 px-3 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500 transition"
+                 class="min-w-0 flex-1 px-3 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500 transition"
                  placeholder="example.com or https://...">
           <button id="addHostname"
                   class="px-4 py-2 text-sm font-medium bg-emerald-600 hover:bg-emerald-700 text-white rounded-md transition-colors shrink-0">
@@ -385,7 +385,7 @@
                placeholder="Server name">
         <div class="flex gap-2">
           <input type="url" id="newDoHUrl"
-                 class="flex-1 px-3 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500 transition"
+                 class="min-w-0 flex-1 px-3 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500 transition"
                  placeholder="https://dns.example.com/dns-query">
           <button id="addDoH"
                   class="px-4 py-2 text-sm font-medium bg-emerald-600 hover:bg-emerald-700 text-white rounded-md transition-colors shrink-0">
@@ -394,7 +394,16 @@
         </div>
       </div>
     </div>
-  </aside>
+    <section class="shrink-0 border-t border-slate-200 dark:border-slate-800 px-4 py-3" aria-label="Import and export settings">
+      <p class="text-xs text-slate-500 dark:text-slate-400 mb-2">Save both lists as JSON. Import replaces both lists after confirmation. Maximum import size: 1 MB.</p>
+      <div class="grid grid-cols-2 gap-2">
+        <button id="exportSettings" type="button" class="min-h-[44px] px-3 py-2 text-sm font-medium rounded-md border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800">Export JSON</button>
+        <button id="importSettings" type="button" class="min-h-[44px] px-3 py-2 text-sm font-medium rounded-md bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50 disabled:cursor-not-allowed">Import JSON</button>
+      </div>
+      <input id="settingsFile" type="file" accept=".json,application/json" class="hidden" aria-label="Import settings file">
+      <p id="settingsTransferStatus" role="status" class="mt-2 text-xs text-slate-700 dark:text-slate-300 break-words"></p>
+    </section>
+  </dialog>
 
   <!-- Toast Container -->
   <div id="toastContainer" class="fixed bottom-6 left-1/2 z-[60] pointer-events-none"></div>
