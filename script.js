@@ -176,7 +176,9 @@ function normalizeDoHServerForStorage(server) {
 
     try {
         const parsedUrl = new URL(url);
-        if (parsedUrl.protocol !== 'https:') return null;
+        // Ignore the retired Mullvad public resolvers in saved settings.
+        if (parsedUrl.protocol !== 'https:' ||
+            ['dns.mullvad.net', 'base.dns.mullvad.net'].includes(parsedUrl.hostname)) return null;
     } catch {
         return null;
     }

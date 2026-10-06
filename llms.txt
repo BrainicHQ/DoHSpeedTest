@@ -4,7 +4,7 @@
 
 ## What it does
 
-DNS Speed Test benchmarks 28+ DNS-over-HTTPS (DoH) servers directly from the user's browser to find the fastest DNS resolver for their specific location and network conditions.
+DNS Speed Test benchmarks 26+ DNS-over-HTTPS (DoH) servers directly from the user's browser to find the fastest DNS resolver for their specific location and network conditions.
 
 ## Key facts
 

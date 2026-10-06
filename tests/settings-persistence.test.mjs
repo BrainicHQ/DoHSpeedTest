@@ -229,4 +229,25 @@ function listText(element) {
     assert.match(profile.message, /blocking|connectivity/i);
 }
 
+// Retired built-in endpoints must not survive saved settings or erase custom servers.
+{
+    const retired = [
+        { name: 'Saved Mullvad', url: 'https://dns.mullvad.net/dns-query' },
+        { name: 'Saved Mullvad Base', url: 'https://base.dns.mullvad.net/dns-query' }
+    ];
+    const custom = { name: 'Mullvad', url: 'https://custom.example/dns-query', type: 'get', allowCors: true, ips: ['192.0.2.10'] };
+    const { context, storage } = createHarness({ [DOH_KEY]: JSON.stringify([...retired, custom]) });
+
+    assert.deepEqual(JSON.parse(vm.runInNewContext('JSON.stringify(dnsServers)', context)), [custom]);
+    vm.runInNewContext('persistDoHServers()', context);
+    assert.deepEqual(JSON.parse(storage.get(DOH_KEY)), [custom]);
+
+    const onlyRetired = createHarness({ [DOH_KEY]: JSON.stringify(retired) });
+    assert.equal(vm.runInNewContext('dnsServers.length', onlyRetired.context), 26);
+    assert.equal(vm.runInNewContext('dnsServers.some(server => server.url.includes("mullvad.net"))', onlyRetired.context), false);
+
+    const empty = createHarness({ [DOH_KEY]: '[]' });
+    assert.equal(vm.runInNewContext('dnsServers.length', empty.context), 0);
+}
+
 console.log('Settings persistence tests passed');
